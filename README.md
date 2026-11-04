@@ -2,12 +2,14 @@
 
 A modern, self-hosted web app for [PurelyMail](https://purelymail.com): webmail, calendar and contacts for your members, and administration of domains, mailboxes and routing for you. PurelyMail remains the mail service; this app runs in one small Docker container (~30 MB RAM idle).
 
-> Status: foundation (M1) — sign-in, roles, the app shell and the account overview are done. Mail, calendar, contacts and the admin pages are next; see [ROADMAP.md](ROADMAP.md).
+> Status: administration (M2) and member self-service are done. Webmail, calendar and contacts are next; see [ROADMAP.md](ROADMAP.md).
 
 ## Features
 
 - Clerk sign-in; administrators are the addresses in `ADMIN_EMAILS` (verified emails only)
 - Account overview: credit, domains with DNS health, mailboxes, routing rules
+- Domains with a guided setup that checks each DNS record live; mailboxes (passwords, 2FA, recovery, app passwords); routing rules with an address tester; activity log
+- Members sign up with Clerk and create or request mailboxes within the quota, domains and approval rules you set. Their mailboxes are private: administrators can delete them but not open or change them
 - ⌘K / Ctrl+K command palette and keyboard navigation (`g` then `i`, `o`, `d`, `u`, `r`...)
 - Light and dark themes; English, 简体中文, 繁體中文, 日本語
 - Your own name and logo (`BRAND_NAME`, `BRAND_LOGO`)

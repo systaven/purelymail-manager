@@ -23,13 +23,13 @@ Running as a long-lived container (instead of serverless) is what makes the mail
 - [x] Four languages, theme switch, brand name and logo from environment variables
 - [x] Docker image (amd64/arm64) built by GitHub Actions; ~30 MB RAM idle
 
-### M2 — Administration
-- [ ] Domains: list with DNS health, add with ownership-record walkthrough (MX, SPF, DKIM, DMARC copy buttons), settings, recheck DNS, delete
-- [ ] Users (mailboxes): search, create, rename, reset password, search indexing, 2FA requirement, recovery methods, app passwords, delete
-- [ ] Routing: aliases, forwards, prefix rules, catch-alls; visual "which rule wins" preview
-- [ ] Members (Clerk users): quotas, approval, allowed domains, disable, promote; mailbox requests and approvals
-- [ ] Settings: defaults, open domains, branding override from the UI (stored in SQLite)
-- [ ] Audit log viewer
+### M2 — Administration ✅
+- [x] Domains: list with DNS health, add-domain wizard with live DNS checks and copy buttons, settings, PurelyMail recheck, delete
+- [x] Mailboxes: search, create, rename, reset password, search indexing, 2FA requirement, recovery methods, app passwords, delete
+- [x] Routing: aliases, forwards, prefix rules, catch-alls; "which rule wins" address tester
+- [x] Members (Clerk users): quotas, approval, allowed domains, disable, promote; mailbox requests and approvals; hand an existing mailbox to a member
+- [x] Activity log
+- [ ] Branding override from the UI (stored in SQLite) — env vars for now
 
 ### M3 — Mail
 - [ ] IMAP connection pool (idle timeout, per-user cap) and IDLE push to the browser over Server-Sent Events
@@ -48,7 +48,7 @@ Running as a long-lived container (instead of serverless) is what makes the mail
 - [ ] Tolerant DAV client (PurelyMail omits `supported-calendar-component-set`; see purelymail-issues#421)
 
 ### M5 — Members
-- [ ] "My mailboxes": request or create mailboxes within quota, change password, forwarding, delete
+- [x] "My mailboxes": request or create mailboxes within quota, change password, forwarding, delete, mail-app settings
 - [ ] Account page (Clerk profile, sessions, 2FA)
 
 ### M6 — Polish

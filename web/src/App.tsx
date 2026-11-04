@@ -1,5 +1,5 @@
 import { lazy, Suspense, type ReactNode } from 'react';
-import { BookUser, CalendarDays, Inbox, Mailbox, Settings, UsersRound } from 'lucide-react';
+import { BookUser, CalendarDays, Inbox, Settings } from 'lucide-react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
 import { AppShell } from '@/components/shell/AppShell';
 import { useT } from '@/lib/i18n';
@@ -14,10 +14,12 @@ const DomainsPage = lazy(() => import('@/pages/Domains'));
 const SettingsPage = lazy(() => import('@/pages/Settings'));
 const RoutingPage = lazy(() => import('@/pages/Routing'));
 const MailboxesPage = lazy(() => import('@/pages/Mailboxes'));
+const MyMailboxesPage = lazy(() => import('@/pages/MyMailboxes'));
+const MembersPage = lazy(() => import('@/pages/Members'));
 
 function AdminOnly({ children }: { children: ReactNode }) {
   const { isAdmin } = useSession();
-  return isAdmin ? children : <Navigate to="/mail" replace />;
+  return isAdmin ? children : <Navigate to="/mailboxes" replace />;
 }
 
 function Splash() {
@@ -44,16 +46,16 @@ export default function App() {
       <Suspense fallback={<Splash />}>
         <Routes>
           <Route element={<AppShell />}>
-            <Route index element={isAdmin ? <OverviewPage /> : <Navigate to="/mail" replace />} />
+            <Route index element={isAdmin ? <OverviewPage /> : <Navigate to="/mailboxes" replace />} />
             <Route path="mail/*" element={soon('mail', Inbox)} />
             <Route path="calendar/*" element={soon('calendar', CalendarDays)} />
             <Route path="contacts/*" element={soon('contacts', BookUser)} />
-            <Route path="mailboxes" element={soon('myMailboxes', Mailbox)} />
+            <Route path="mailboxes" element={<MyMailboxesPage />} />
             <Route path="account" element={soon('account', Settings)} />
             <Route path="domains" element={<AdminOnly><DomainsPage /></AdminOnly>} />
             <Route path="users" element={<AdminOnly><MailboxesPage /></AdminOnly>} />
             <Route path="routing" element={<AdminOnly><RoutingPage /></AdminOnly>} />
-            <Route path="guests" element={<AdminOnly>{soon('guests', UsersRound)}</AdminOnly>} />
+            <Route path="guests" element={<AdminOnly><MembersPage /></AdminOnly>} />
             <Route path="settings" element={<AdminOnly><SettingsPage /></AdminOnly>} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
