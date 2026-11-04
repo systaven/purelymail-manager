@@ -112,8 +112,8 @@ export const purelymail = {
     call('updateDomainSettings', { name, ...settings }),
   getOwnershipCode: () => call<{ code: string }>('getOwnershipCode'),
 
-  listUsers: (): Promise<string[]> => {
-    if (!usersCache || Date.now() - usersCache.at > USERS_TTL_MS) {
+  listUsers: (fresh = false): Promise<string[]> => {
+    if (fresh || !usersCache || Date.now() - usersCache.at > USERS_TTL_MS) {
       const users = call<{ users: string[] }>('listUser').then((r) => r.users ?? []);
       usersCache = { at: Date.now(), users };
       users.catch(() => (usersCache = null));

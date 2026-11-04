@@ -10,7 +10,9 @@ import { commonMessages } from '@/lib/i18n/messages/common';
 import { mailboxesMessages } from '@/lib/i18n/messages/mailboxes';
 import { useErrorText } from '@/lib/i18n/useErrorText';
 import { useAction } from '@/lib/mutation';
-import { DialogShell } from './shared';
+import { Switch } from '@/components/ui/switch';
+import { PasswordField } from './PasswordField';
+import { DialogShell, MIN_PASSWORD } from './shared';
 
 // Adds a mailbox that already exists in PurelyMail to the panel. Mount with a
 // fresh key each time so it starts empty.
@@ -19,7 +21,11 @@ export function AddExistingDialog({ open, onOpenChange }: { open: boolean; onOpe
   const tc = useT(commonMessages);
   const errorText = useErrorText();
   const [address, setAddress] = useState('');
-  const action = useAction((value: string) => adminApi.adoptMailbox(value), {
+  const [setPassword, setSetPassword] = useState(false);
+  const [password, setPasswordValue] = useState('');
+  const [tried, setTried] = useState(false);
+  const passwordError = tried && setPassword && password.length < MIN_PASSWORD ? t('passwordTooShort') : null;
+  const action = useAction((value: string) => adminApi.adoptMailbox(value, setPassword ? password : undefined), {
     invalidate: [adminKeys.mailboxes, adminKeys.overview],
     errorToast: false,
   });
@@ -27,10 +33,11 @@ export function AddExistingDialog({ open, onOpenChange }: { open: boolean; onOpe
   const submit = (e: FormEvent) => {
     e.preventDefault();
     const value = address.trim().toLowerCase();
-    if (!value) return;
+    setTried(true);
+    if (!value || (setPassword && password.length < MIN_PASSWORD)) return;
     action.mutate(value, {
       onSuccess: () => {
-        toast.success(t('added', { address: value }));
+        toast.success(setPassword ? t('addedWithPassword', { address: value }) : t('added', { address: value }));
         onOpenChange(false);
       },
     });
@@ -69,6 +76,14 @@ export function AddExistingDialog({ open, onOpenChange }: { open: boolean; onOpe
           autoFocus
         />
         {action.error && <p className="text-sm text-destructive">{errorText(action.error)}</p>}
+        <div className="flex items-center justify-between gap-4 pt-2">
+          <label htmlFor="add-existing-set-password" className="min-w-0 cursor-pointer">
+            <span className="block text-sm font-medium">{t('addSetPassword')}</span>
+            <span className="block text-xs text-muted-foreground">{setPassword ? t('addSetPasswordHint') : t('addKeepPasswordHint')}</span>
+          </label>
+          <Switch id="add-existing-set-password" checked={setPassword} onCheckedChange={setSetPassword} />
+        </div>
+        {setPassword && <PasswordField id="add-existing-password" value={password} onChange={setPasswordValue} error={passwordError} />}
       </form>
     </DialogShell>
   );

@@ -2,28 +2,42 @@ import { Hono } from 'hono';
 import { type AppEnv } from '../../auth';
 import { audit, getDb } from '../../db';
 import { ApiError, badRequest } from '../../errors';
-import { addManaged, assertManaged, managedMailboxes, removeManaged, renameManaged } from '../../managed';
+import { addManaged, assertManaged, isManaged, managedMailboxes, removeManaged, renameManaged } from '../../managed';
 import { assertNotPrivate, ownerOf, ownersByMailbox } from '../../owners';
-import { purelymail, type UserChanges } from '../../purelymail';
+import { purelymail, PurelyMailError, type UserChanges } from '../../purelymail';
 import { bool, domain, email, json, localPart, password, str } from '../../validate';
 
 export const mailboxRoutes = new Hono<AppEnv>()
   // Every route on one mailbox requires it to be one the panel manages.
   // ('/:address/*' also matches '/:address' itself.)
   .use('/:address/*', async (c, next) => {
-    if (c.req.param('address') !== 'adopt') assertManaged(email(c.req.param('address'), 'address'));
+    if (!['adopt', 'check'].includes(c.req.param('address'))) assertManaged(email(c.req.param('address'), 'address'));
     await next();
   })
   .get('/', async (c) => {
     const [names, owners] = [await managedMailboxes(), ownersByMailbox()];
     return c.json(names.map((address) => ({ address, owner: owners.get(address) ?? null })));
   })
-  // Adds a mailbox that already exists in PurelyMail to the panel.
+  // Whether an address is free, already in the panel, or only in PurelyMail
+  // (the new-mailbox dialog then offers to add it instead).
+  .get('/check', async (c) => {
+    const address = email(c.req.query('address'), 'address');
+    const exists = (await purelymail.listUsers(c.req.query('fresh') === '1')).includes(address);
+    return c.json({ address, exists, managed: exists && isManaged(address), owned: Boolean(ownerOf(address)) });
+  })
+  // Adds a mailbox that already exists in PurelyMail to the panel, keeping its
+  // password or, when one is given, replacing it.
   .post('/adopt', async (c) => {
-    const address = email((await json(c.req)).address, 'address');
-    if (!(await purelymail.listUsers()).includes(address)) throw new ApiError('No such mailbox', 404, 'mailbox_not_found');
+    const body = await json(c.req);
+    const address = email(body.address, 'address');
+    const newPassword = body.password === undefined || body.password === '' ? undefined : password(body.password);
+    if (!(await purelymail.listUsers(true)).includes(address)) throw new ApiError('No such mailbox', 404, 'mailbox_not_found');
+    if (newPassword) {
+      await purelymail.modifyUser(address, { newPassword });
+      // A stored webmail app password still works; nothing else to reset.
+    }
     addManaged(address, c.var.session.actor);
-    audit(c.var.session.actor, 'mailbox.adopt', address);
+    audit(c.var.session.actor, 'mailbox.adopt', address, { passwordChanged: Boolean(newPassword) });
     return c.json({ ok: true });
   })
   // Stops showing a mailbox in the panel; it stays in PurelyMail untouched.
@@ -51,7 +65,19 @@ export const mailboxRoutes = new Hono<AppEnv>()
       enablePasswordReset: bool(body.enablePasswordReset, 'enablePasswordReset'),
       enableSearchIndexing: bool(body.enableSearchIndexing, 'enableSearchIndexing'),
     };
-    await purelymail.createUser(user);
+    const address = `${user.localPart}@${user.domain}`;
+    // Already in PurelyMail: offer to add it to the panel instead of failing
+    // with PurelyMail's own error.
+    const exists = () =>
+      isManaged(address) ? new ApiError('Address taken', 409, 'address_taken') : new ApiError('Mailbox exists', 409, 'mailbox_exists', { address });
+    if ((await purelymail.listUsers()).includes(address)) throw exists();
+    try {
+      await purelymail.createUser(user);
+    } catch (error) {
+      // The user list is cached for a minute; ask PurelyMail again.
+      if (error instanceof PurelyMailError && (await purelymail.listUsers(true)).includes(address)) throw exists();
+      throw error;
+    }
     addManaged(`${user.localPart}@${user.domain}`, c.var.session.actor);
     audit(c.var.session.actor, 'mailbox.create', `${user.localPart}@${user.domain}`);
     return c.json({ ok: true });

@@ -1,6 +1,6 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Check, ChevronsUpDown, Globe, Loader2 } from 'lucide-react';
+import { Check, ChevronsUpDown, Globe, Info, Loader2 } from 'lucide-react';
 import { Link } from 'react-router';
 import { toast } from 'sonner';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { ErrorBanner } from '@/components/ui/feedback';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/misc';
 import { Switch } from '@/components/ui/switch';
+import { ApiClientError } from '@/lib/api';
 import { adminApi, adminKeys } from '@/lib/admin-api';
 import { useT } from '@/lib/i18n';
 import { commonMessages } from '@/lib/i18n/messages/common';
@@ -46,11 +47,38 @@ export function CreateMailboxDialog({
   const domain = chosen ?? (defaultDomain && names.includes(defaultDomain) ? defaultDomain : names[0]) ?? '';
 
   const action = useAction(adminApi.createMailbox, { invalidate: [adminKeys.mailboxes, adminKeys.overview], errorToast: false });
+  const adopt = useAction((vars: { address: string; password?: string }) => adminApi.adoptMailbox(vars.address, vars.password), {
+    invalidate: [adminKeys.mailboxes, adminKeys.overview],
+    errorToast: false,
+  });
+
+  // Checks, shortly after typing stops, whether the address already exists in
+  // PurelyMail. If it does, the dialog adds it to the panel instead.
+  const typed = localPart.trim() && domain ? `${localPart.trim().toLowerCase()}@${domain}` : '';
+  const [checked, setChecked] = useState('');
+  useEffect(() => {
+    const timer = setTimeout(() => setChecked(typed), 400);
+    return () => clearTimeout(timer);
+  }, [typed]);
+  const check = useQuery({
+    queryKey: ['admin', 'mailbox-check', checked],
+    queryFn: () => adminApi.checkMailbox(checked),
+    enabled: open && checked.includes('@'),
+    staleTime: 30_000,
+    retry: false,
+  });
+  // Creating can also find out (the check's list is cached for a minute).
+  const createFoundIt = action.error instanceof ApiClientError && action.error.code === 'mailbox_exists' && action.variables && `${action.variables.localPart}@${action.variables.domain}` === typed;
+  const current = check.data?.address === typed ? check.data : null;
+  const existing = Boolean((current?.exists && !current.managed) || createFoundIt);
+  const alreadyInPanel = Boolean(current?.managed);
+  const [keepPassword, setKeepPassword] = useState(true);
+  const needsPassword = !existing || !keepPassword;
 
   const errors = {
-    local: tried && !localPart.trim() ? t('localRequired') : null,
+    local: tried && !localPart.trim() ? t('localRequired') : alreadyInPanel ? t('alreadyInPanel') : null,
     domain: tried && !domain ? t('domainRequired') : null,
-    password: tried && password.length < MIN_PASSWORD ? t('passwordTooShort') : null,
+    password: tried && needsPassword && password.length < MIN_PASSWORD ? t('passwordTooShort') : null,
   };
 
   // Pasting a whole address fills in both halves.
@@ -68,8 +96,20 @@ export function CreateMailboxDialog({
     e.preventDefault();
     setTried(true);
     const local = localPart.trim();
-    if (!local || !domain || password.length < MIN_PASSWORD) return;
+    if (!local || !domain || alreadyInPanel || (needsPassword && password.length < MIN_PASSWORD)) return;
     const address = `${local}@${domain}`;
+    if (existing) {
+      adopt.mutate(
+        { address: address.toLowerCase(), password: keepPassword ? undefined : password },
+        {
+          onSuccess: () => {
+            toast.success(keepPassword ? t('added', { address }) : t('addedWithPassword', { address }));
+            onOpenChange(false);
+          },
+        }
+      );
+      return;
+    }
     action.mutate(
       { localPart: local, domain, password, enablePasswordReset: reset, enableSearchIndexing: indexing },
       {
@@ -98,9 +138,9 @@ export function CreateMailboxDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             {tc('cancel')}
           </Button>
-          <Button type="submit" form="create-mailbox" disabled={action.isPending || noDomains || domains.isPending}>
-            {action.isPending && <Loader2 className="animate-spin" />}
-            {t('createMailbox')}
+          <Button type="submit" form="create-mailbox" disabled={action.isPending || adopt.isPending || noDomains || domains.isPending || alreadyInPanel}>
+            {(action.isPending || adopt.isPending) && <Loader2 className="animate-spin" />}
+            {existing ? t('addToPanel') : t('createMailbox')}
           </Button>
         </>
       }
@@ -161,17 +201,52 @@ export function CreateMailboxDialog({
             {(errors.local || errors.domain) && <p className="text-xs text-destructive">{errors.local ?? errors.domain}</p>}
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="create-password">{t('password')}</Label>
-            <PasswordField id="create-password" value={password} onChange={setPassword} error={errors.password} />
-          </div>
+          {existing && (
+            <div className="space-y-3 rounded-lg border border-primary/30 bg-primary/5 p-3">
+              <p className="flex gap-2 text-sm">
+                <Info className="mt-0.5 size-4 shrink-0 text-primary" />
+                <span>{t('existsInPurelymail')}</span>
+              </p>
+              <div role="radiogroup" className="grid gap-2 sm:grid-cols-2">
+                {[
+                  { keep: true, title: t('addKeepPassword'), hint: t('addKeepPasswordHint') },
+                  { keep: false, title: t('addSetPassword'), hint: t('addSetPasswordHint') },
+                ].map((option) => (
+                  <button
+                    key={String(option.keep)}
+                    type="button"
+                    role="radio"
+                    aria-checked={keepPassword === option.keep}
+                    onClick={() => setKeepPassword(option.keep)}
+                    className={cn(
+                      'rounded-md border bg-background px-3 py-2 text-left transition-colors hover:bg-accent/50',
+                      keepPassword === option.keep && 'border-primary ring-2 ring-primary/20'
+                    )}
+                  >
+                    <span className="block text-sm font-medium">{option.title}</span>
+                    <span className="block text-xs text-muted-foreground">{option.hint}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
-          <div className="divide-y rounded-lg border">
-            <ToggleRow id="create-reset" label={t('passwordReset')} hint={t('passwordResetHint')} checked={reset} onChange={setReset} />
-            <ToggleRow id="create-indexing" label={t('searchIndexing')} hint={t('searchIndexingHint')} checked={indexing} onChange={setIndexing} />
-          </div>
+          {needsPassword && (
+            <div className="space-y-1.5">
+              <Label htmlFor="create-password">{existing ? t('newPassword') : t('password')}</Label>
+              <PasswordField id="create-password" value={password} onChange={setPassword} error={errors.password} />
+            </div>
+          )}
 
-          {action.error && <ErrorBanner message={errorText(action.error)} />}
+          {!existing && (
+            <div className="divide-y rounded-lg border">
+              <ToggleRow id="create-reset" label={t('passwordReset')} hint={t('passwordResetHint')} checked={reset} onChange={setReset} />
+              <ToggleRow id="create-indexing" label={t('searchIndexing')} hint={t('searchIndexingHint')} checked={indexing} onChange={setIndexing} />
+            </div>
+          )}
+
+          {action.error && !createFoundIt && <ErrorBanner message={errorText(action.error)} />}
+          {adopt.error && <ErrorBanner message={errorText(adopt.error)} />}
         </form>
       )}
     </DialogShell>
