@@ -1,4 +1,6 @@
-import { removeManaged } from '../managed';
+import { addManaged, isManaged, removeManaged } from '../managed';
+import { verifyPassword } from '../mail/pool';
+import { ownerOf } from '../owners';
 import { Hono } from 'hono';
 import { type AppEnv, requireAuth } from '../auth';
 import { audit, getDb } from '../db';
@@ -13,6 +15,11 @@ function ownMailbox(clerkUserId: string, value: string): string {
   if (!ownedMailboxes(clerkUserId).includes(address)) throw new ApiError('Not your mailbox', 403, 'no_mailbox_access');
   return address;
 }
+
+// Wrong-password attempts when claiming a mailbox, per member (in memory).
+const claimFailures = new Map<string, number[]>();
+const CLAIM_WINDOW_MS = 15 * 60_000;
+const CLAIM_MAX_FAILURES = 5;
 
 export const meRoutes = new Hono<AppEnv>()
   .use(requireAuth())
@@ -41,6 +48,40 @@ export const meRoutes = new Hono<AppEnv>()
       .prepare("UPDATE mailbox_requests SET status = 'cancelled' WHERE id = ? AND clerk_user_id = ? AND status = 'pending'")
       .run(Number(c.req.param('id')), c.var.session.clerkUserId);
     if (!result.changes) throw new ApiError('Request not found', 404, 'not_found');
+    return c.json({ ok: true });
+  })
+  .post('/claim', async (c) => {
+    // A mailbox that already exists in PurelyMail becomes the member's after
+    // they prove it's theirs with its current password. Mailboxes the panel
+    // already manages (admins' or another member's) can't be claimed.
+    const user = getUser(c.var.session.clerkUserId);
+    const body = await json(c.req);
+    const address = email(body.address, 'address');
+    const current = str(body.password, 'password', { max: 200 });
+    const newPassword = body.newPassword === undefined || body.newPassword === '' ? undefined : password(body.newPassword);
+
+    const now = Date.now();
+    const recent = (claimFailures.get(user.clerk_user_id) ?? []).filter((t) => now - t < CLAIM_WINDOW_MS);
+    if (recent.length >= CLAIM_MAX_FAILURES) throw new ApiError('Too many attempts', 429, 'too_many_attempts');
+
+    const owner = ownerOf(address);
+    if (owner?.clerkUserId === user.clerk_user_id) throw new ApiError('Already yours', 409, 'already_yours');
+    if (owner || isManaged(address)) throw new ApiError('Managed by the panel', 409, 'mailbox_managed');
+    const limits = limitsFor(user);
+    if (ownedMailboxes(user.clerk_user_id).length + pendingRequests(user.clerk_user_id).length >= limits.maxMailboxes) {
+      throw new ApiError('Mailbox limit reached', 403, 'quota_reached', { limit: limits.maxMailboxes });
+    }
+    // Same answer for "no such mailbox" and "wrong password": no probing.
+    const exists = (await purelymail.listUsers(true)).includes(address);
+    if (!exists || !(await verifyPassword(address, current))) {
+      claimFailures.set(user.clerk_user_id, [...recent, now]);
+      throw new ApiError('Wrong address or password', 403, 'claim_failed');
+    }
+    claimFailures.delete(user.clerk_user_id);
+    if (newPassword) await purelymail.modifyUser(address, { newPassword });
+    getDb().prepare('INSERT INTO mailbox_owners (mailbox, clerk_user_id) VALUES (?, ?)').run(address, user.clerk_user_id);
+    addManaged(address, user.clerk_user_id);
+    audit(c.var.session.actor, 'mailbox.claim', address, { passwordChanged: Boolean(newPassword) });
     return c.json({ ok: true });
   })
   .delete('/mailboxes/:address', async (c) => {

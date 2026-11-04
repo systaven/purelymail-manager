@@ -3,6 +3,11 @@ import { defineMessages } from '..';
 // "My mailboxes": a member managing their own mailboxes.
 export const myMailboxesMessages = defineMessages({
   en: {
+    claimButton: 'Add existing', claimTitle: 'Add a mailbox you already have',
+    claimBody: "If you already have a mailbox on this PurelyMail account, add it here. Enter its current password to prove it's yours.",
+    currentPassword: 'Current password', currentPasswordRequired: 'Enter the mailbox password.', invalidEmail: 'Enter a full email address.',
+    claimChangePassword: 'Set a new password', claimKeepHint: 'The mailbox keeps its current password.', claimChangeHint: 'Mail stays; the old password stops working.',
+    claimSubmit: 'Add mailbox', claimed: '{address} is now yours',
     title: 'My mailboxes', description: 'Mailboxes that belong to you. Only you can read them or change their settings.',
     usage: '{used} of {max} used', newMailbox: 'New mailbox', requestMailbox: 'Request a mailbox',
     noMailboxes: "You don't have a mailbox yet", noMailboxesBody: 'Create one on any of the domains open to you.',
@@ -24,6 +29,11 @@ export const myMailboxesMessages = defineMessages({
     invalidTargets: 'Check the addresses: {value}',
   },
   'zh-CN': {
+    claimButton: '添加已有邮箱', claimTitle: '添加你已有的邮箱',
+    claimBody: '如果你在这个 PurelyMail 账户下已经有邮箱，可以在这里添加。请输入它当前的密码，证明它属于你。',
+    currentPassword: '当前密码', currentPasswordRequired: '请输入邮箱密码。', invalidEmail: '请输入完整的邮箱地址。',
+    claimChangePassword: '设置新密码', claimKeepHint: '邮箱保留当前密码。', claimChangeHint: '邮件保留，旧密码将失效。',
+    claimSubmit: '添加邮箱', claimed: '{address} 现在归你了',
     title: '我的邮箱', description: '属于你的邮箱。只有你能阅读它们或修改设置。',
     usage: '已用 {used} / {max}', newMailbox: '新建邮箱', requestMailbox: '申请邮箱',
     noMailboxes: '你还没有邮箱', noMailboxesBody: '可以在对你开放的任一域名下创建。',
@@ -45,6 +55,11 @@ export const myMailboxesMessages = defineMessages({
     invalidTargets: '请检查这些地址：{value}',
   },
   'zh-TW': {
+    claimButton: '新增既有信箱', claimTitle: '新增你已有的信箱',
+    claimBody: '如果你在這個 PurelyMail 帳戶下已經有信箱，可以在這裡新增。請輸入它目前的密碼，證明它屬於你。',
+    currentPassword: '目前密碼', currentPasswordRequired: '請輸入信箱密碼。', invalidEmail: '請輸入完整的電子郵件地址。',
+    claimChangePassword: '設定新密碼', claimKeepHint: '信箱保留目前的密碼。', claimChangeHint: '郵件保留，舊密碼將失效。',
+    claimSubmit: '新增信箱', claimed: '{address} 現在歸你了',
     title: '我的信箱', description: '屬於你的信箱。只有你能閱讀或變更設定。',
     usage: '已用 {used} / {max}', newMailbox: '新增信箱', requestMailbox: '申請信箱',
     noMailboxes: '你還沒有信箱', noMailboxesBody: '可以在對你開放的任一網域下建立。',
@@ -66,6 +81,11 @@ export const myMailboxesMessages = defineMessages({
     invalidTargets: '請檢查這些地址：{value}',
   },
   ja: {
+    claimButton: '既存を追加', claimTitle: 'お持ちのメールボックスを追加',
+    claimBody: 'この PurelyMail アカウントに既にメールボックスをお持ちなら、ここで追加できます。本人確認のため現在のパスワードを入力してください。',
+    currentPassword: '現在のパスワード', currentPasswordRequired: 'メールボックスのパスワードを入力してください。', invalidEmail: 'メールアドレスをすべて入力してください。',
+    claimChangePassword: '新しいパスワードを設定', claimKeepHint: '現在のパスワードのままにします。', claimChangeHint: 'メールは残り、古いパスワードは使えなくなります。',
+    claimSubmit: 'メールボックスを追加', claimed: '{address} があなたのものになりました',
     title: 'マイメールボックス', description: 'あなたのメールボックスです。読んだり設定を変更したりできるのはあなただけです。',
     usage: '{max} 件中 {used} 件使用', newMailbox: '新しいメールボックス', requestMailbox: 'メールボックスを申請',
     noMailboxes: 'まだメールボックスがありません', noMailboxesBody: '利用できるドメインで作成できます。',

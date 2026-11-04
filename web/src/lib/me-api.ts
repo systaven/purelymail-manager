@@ -24,6 +24,8 @@ export const meApi = {
   account: () => api<MyAccount>('/me'),
   create: (body: { localPart: string; domain: string; password?: string; note?: string }) =>
     api<{ status: 'created' | 'requested' }>('/me/mailboxes', { body }),
+  // Takes over a mailbox that already exists in PurelyMail, proven with its password.
+  claim: (body: { address: string; password: string; newPassword?: string }) => api('/me/claim', { body }),
   cancelRequest: (id: number) => api(`/me/requests/${id}`, { method: 'DELETE' }),
   remove: (address: string) => api(`/me/mailboxes/${enc(address)}`, { method: 'DELETE' }),
   setPassword: (address: string, password: string) => api(`/me/mailboxes/${enc(address)}/password`, { body: { password } }),

@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Clock, Forward, KeyRound, Lock, Mailbox, MoreHorizontal, Plus, Server, Trash2 } from 'lucide-react';
+import { Clock, Download, Forward, KeyRound, Lock, Mailbox, MoreHorizontal, Plus, Server, Trash2 } from 'lucide-react';
 import { PageHeader } from '@/components/PageHeader';
 import { AddressText, DialogShell } from '@/components/mailboxes/shared';
 import { PasswordField } from '@/components/mailboxes/PasswordField';
@@ -36,6 +36,78 @@ const SERVERS = [
   { key: 'incoming', host: 'imap.purelymail.com', port: '993', security: 'SSL/TLS' },
   { key: 'outgoing', host: 'smtp.purelymail.com', port: '465', security: 'SSL/TLS' },
 ] as const;
+
+// Adds a mailbox the member already has in PurelyMail, proven with its current
+// password (the server signs in to check). Optionally sets a new password.
+function ClaimDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  const t = useT(myMailboxesMessages);
+  const tc = useT(commonMessages);
+  const errorText = useErrorText();
+  const [address, setAddress] = useState('');
+  const [current, setCurrent] = useState('');
+  const [change, setChange] = useState(false);
+  const [next, setNext] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const claim = useAction(meApi.claim, { invalidate: [meKeys.account], errorToast: false });
+
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    const value = address.trim().toLowerCase();
+    if (!EMAIL_RE.test(value)) return setError(t('invalidEmail'));
+    if (!current) return setError(t('currentPasswordRequired'));
+    if (change && next.length < MIN_PASSWORD) return setError(t('passwordTooShort'));
+    setError(null);
+    claim.mutate(
+      { address: value, password: current, newPassword: change ? next : undefined },
+      {
+        onSuccess: () => {
+          toast.success(t('claimed', { address: value }));
+          onOpenChange(false);
+        },
+        onError: (err) => setError(errorText(err)),
+      }
+    );
+  };
+
+  return (
+    <DialogShell
+      open={open}
+      onOpenChange={onOpenChange}
+      title={t('claimTitle')}
+      description={t('claimBody')}
+      footer={
+        <>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            {tc('cancel')}
+          </Button>
+          <Button type="submit" form="claim-mailbox" disabled={claim.isPending || !address.trim() || !current}>
+            {t('claimSubmit')}
+          </Button>
+        </>
+      }
+    >
+      <form id="claim-mailbox" onSubmit={submit} className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="claim-address">{t('address')}</Label>
+          <Input id="claim-address" type="email" autoFocus autoComplete="off" spellCheck={false} value={address} onChange={(e) => setAddress(e.target.value)} placeholder="name@example.com" />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="claim-current">{t('currentPassword')}</Label>
+          <Input id="claim-current" type="password" autoComplete="off" value={current} onChange={(e) => setCurrent(e.target.value)} />
+        </div>
+        <div className="flex items-center justify-between gap-4">
+          <label htmlFor="claim-change" className="min-w-0 cursor-pointer">
+            <span className="block text-sm font-medium">{t('claimChangePassword')}</span>
+            <span className="block text-xs text-muted-foreground">{change ? t('claimChangeHint') : t('claimKeepHint')}</span>
+          </label>
+          <Switch id="claim-change" checked={change} onCheckedChange={setChange} />
+        </div>
+        {change && <PasswordField id="claim-new" value={next} onChange={setNext} />}
+        {error && <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>}
+      </form>
+    </DialogShell>
+  );
+}
 
 function CreateDialog({ account, open, onOpenChange }: { account: MyAccount; open: boolean; onOpenChange: (open: boolean) => void }) {
   const t = useT(myMailboxesMessages);
@@ -285,6 +357,12 @@ export default function MyMailboxesPage() {
   const confirm = useConfirm();
   const account = useQuery({ queryKey: meKeys.account, queryFn: meApi.account });
   const [creating, setCreating] = useState(false);
+  const [claiming, setClaiming] = useState(false);
+  const [claimKey, setClaimKey] = useState(0);
+  const openClaim = () => {
+    setClaimKey((k) => k + 1);
+    setClaiming(true);
+  };
   const [passwordFor, setPasswordFor] = useState<string | null>(null);
   const [forwardingFor, setForwardingFor] = useState<string | null>(null);
 
@@ -315,9 +393,14 @@ export default function MyMailboxesPage() {
         description={t('description')}
         actions={
           data && (
-            <Button onClick={() => setCreating(true)} disabled={full || noDomains}>
-              <Plus /> {data.limits.requiresApproval ? t('requestMailbox') : t('newMailbox')}
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={openClaim} disabled={full}>
+                <Download /> {t('claimButton')}
+              </Button>
+              <Button onClick={() => setCreating(true)} disabled={full || noDomains}>
+                <Plus /> {data.limits.requiresApproval ? t('requestMailbox') : t('newMailbox')}
+              </Button>
+            </div>
           )
         }
       />
@@ -420,6 +503,7 @@ export default function MyMailboxesPage() {
 
           {data.mailboxes.length > 0 && <ConnectCard address={data.mailboxes[0]} />}
 
+          <ClaimDialog key={claimKey} open={claiming} onOpenChange={setClaiming} />
           <CreateDialog key={data.limits.allowedDomains.join()} account={data} open={creating} onOpenChange={setCreating} />
         </div>
       )}

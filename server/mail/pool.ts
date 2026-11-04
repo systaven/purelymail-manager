@@ -1,3 +1,4 @@
+import { ApiError } from '../errors';
 import { EventEmitter } from 'node:events';
 import { ImapFlow } from 'imapflow';
 import type { MailboxAccess } from './access';
@@ -198,4 +199,17 @@ setInterval(() => {
 export function closeAll() {
   for (const address of [...pool.keys()]) close(address);
   for (const w of watchers.values()) w.client?.close();
+}
+
+// Whether `password` signs in to the mailbox over IMAP (members proving a
+// mailbox is theirs). Throws when the server can't be reached.
+export async function verifyPassword(address: string, password: string): Promise<boolean> {
+  try {
+    const client = await connect(address, password);
+    await client.logout().catch(() => {});
+    return true;
+  } catch (error) {
+    if (isAuthError(error)) return false;
+    throw new ApiError("Couldn't reach the mail server", 502, 'mail_unreachable');
+  }
 }
