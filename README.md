@@ -2,7 +2,7 @@
 
 A modern, self-hosted web app for [PurelyMail](https://purelymail.com): webmail, calendar and contacts for your members, and administration of domains, mailboxes and routing for you. PurelyMail remains the mail service; this app runs in one small Docker container (~30 MB RAM idle).
 
-> Status: administration, member self-service and webmail are done. Calendar and contacts are next; see [ROADMAP.md](ROADMAP.md).
+> Status: administration, member self-service, webmail, calendar and contacts are done. See [ROADMAP.md](ROADMAP.md) for what's next.
 
 ## Features
 
@@ -11,6 +11,7 @@ A modern, self-hosted web app for [PurelyMail](https://purelymail.com): webmail,
 - Domains with a guided setup that checks each DNS record live; mailboxes (passwords, 2FA, recovery, app passwords); routing rules with an address tester; activity log
 - Members sign up with Clerk and create or request mailboxes within the quota, domains and approval rules you set. Their mailboxes are private: administrators can delete them but not open or change them
 - Webmail: conversations, live push of new mail, search operators, keyboard shortcuts, rich-text composer with drafts, undo send and scheduled send
+- Calendar (month, week, day, agenda; drag to create, move and resize; recurring events) and contacts (groups, search, quick compose), stored in PurelyMail over CalDAV/CardDAV
 - ⌘K / Ctrl+K command palette and keyboard navigation (`g` then `i`, `o`, `d`, `u`, `r`...)
 - Light and dark themes; English, 简体中文, 繁體中文, 日本語
 - Your own name and logo (`BRAND_NAME`, `BRAND_LOGO`)
@@ -43,6 +44,8 @@ Webmail signs in to PurelyMail over IMAP/SMTP with an app password the panel cre
 
 New mail is pushed to the browser (IMAP IDLE + Server-Sent Events). Connections are pooled and closed after five idle minutes.
 
+Calendar and contacts use the same app password against PurelyMail's CalDAV/CardDAV server, so they stay in sync with your phone and desktop apps. Recurring events are expanded on the server; new events keep the browser's time zone.
+
 ## Configuration
 
 | Variable | Required | Description |
@@ -57,6 +60,7 @@ New mail is pushed to the browser (IMAP IDLE + Server-Sent Events). Connections 
 | `SECRET_KEY` | no | Encrypts stored webmail credentials and queued mail. Default: a random key created in `DATA_DIR/secret.key` |
 | `MAIL_SAVE_SENT` | no | Save sent mail to the Sent folder (default `true`) |
 | `MAIL_IMAP_*`, `MAIL_SMTP_*`, `MAIL_MAX_CONNECTIONS` | no | Mail server overrides (testing) and the IMAP connection cap (default 40) |
+| `DAV_URL` | no | CalDAV/CardDAV base (default `https://purelymail.com/webdav/`) |
 | `PORT`, `DATA_DIR` | no | Defaults `3000` and `/data` in the image |
 | `PURELYMAIL_API_URL` | no | Override the API base (testing) |
 

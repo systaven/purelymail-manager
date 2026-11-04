@@ -519,6 +519,7 @@ export default function ComposerWindow({ win, active, onClose, onPatch, onActiva
           names={names}
           onNames={learnNames}
           suggestions={suggestions}
+          mailbox={mailbox}
           inputRef={toRef}
           trailing={
             (!showCc || !showBcc) && (
@@ -555,6 +556,7 @@ export default function ComposerWindow({ win, active, onClose, onPatch, onActiva
             names={names}
             onNames={learnNames}
             suggestions={suggestions}
+            mailbox={mailbox}
             inputRef={ccRef}
           />
         )}
@@ -566,6 +568,7 @@ export default function ComposerWindow({ win, active, onClose, onPatch, onActiva
             names={names}
             onNames={learnNames}
             suggestions={suggestions}
+            mailbox={mailbox}
             inputRef={bccRef}
           />
         )}

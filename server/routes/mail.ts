@@ -8,6 +8,7 @@ import { watch } from '../mail/pool';
 import { cancel, deleteDraft, enqueue, listOutbox, parseOutgoing, retry, saveDraft } from '../mail/send';
 import { withImap } from '../mail/pool';
 import { json, str } from '../validate';
+import { davRoutes } from './dav';
 
 const ACTIONS: Action[] = ['read', 'unread', 'star', 'unstar', 'archive', 'trash', 'delete', 'spam', 'notSpam', 'move'];
 
@@ -123,6 +124,8 @@ export const mailRoutes = new Hono<AppEnv>()
     await deleteDraft(access, uid(c.req.param('uid')));
     return c.json({ ok: true });
   })
+
+  .route('/dav', davRoutes)
 
   // Deletes the panel's app password for the mailbox (a new one is made on next use).
   .post('/signout', async (c) => {

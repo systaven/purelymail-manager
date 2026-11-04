@@ -1,5 +1,7 @@
 import { useId, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { X } from 'lucide-react';
+import { davApi, davKeys } from '@/lib/dav-api';
 import type { Address } from '@/lib/mail-api';
 import { useT } from '@/lib/i18n';
 import { composeMessages } from '@/lib/i18n/messages/compose';
@@ -17,18 +19,48 @@ interface Props {
   suggestions: Contact[];
   inputRef?: React.Ref<HTMLInputElement>;
   trailing?: ReactNode;
+  // Also suggest this mailbox's saved contacts (CardDAV), when available.
+  mailbox?: string;
 }
 
 const MAX_SUGGESTIONS = 6;
 
 // Chip input for To / Cc / Bcc with autocomplete.
-export function RecipientInput({ label, value, onChange, names, onNames, suggestions, inputRef, trailing }: Props) {
+// Saved contacts of the mailbox, shared with the Contacts page's cache. Quietly
+// empty when the mailbox has no address book (or the DAV server is down).
+function useSavedContacts(mailbox: string | undefined, recent: Contact[]) {
+  const saved = useQuery({
+    queryKey: davKeys.contacts(mailbox ?? ''),
+    queryFn: () => davApi.contacts(mailbox!),
+    enabled: Boolean(mailbox),
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+  return useMemo(() => {
+    if (!saved.data?.length) return recent;
+    const byAddress = new Map(recent.map((c) => [c.address, c]));
+    const me = mailbox?.toLowerCase();
+    for (const contact of saved.data) {
+      for (const e of contact.emails) {
+        const address = e.value.trim().toLowerCase();
+        if (!address || address === me) continue;
+        const prev = byAddress.get(address);
+        // Saved contacts rank like someone written to once; their name wins.
+        byAddress.set(address, prev ? { ...prev, name: contact.name || prev.name } : { name: contact.name, address, uses: 1, last: 0 });
+      }
+    }
+    return [...byAddress.values()];
+  }, [saved.data, recent, mailbox]);
+}
+
+export function RecipientInput({ label, value, onChange, names, onNames, suggestions: recent, inputRef, trailing, mailbox }: Props) {
   const t = useT(composeMessages);
   const id = useId();
   const [text, setText] = useState('');
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(0);
   const ownRef = useRef<HTMLInputElement | null>(null);
+  const suggestions = useSavedContacts(mailbox, recent);
 
   const matches = useMemo(() => {
     const q = text.trim().toLowerCase();

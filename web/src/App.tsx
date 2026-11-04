@@ -1,5 +1,5 @@
 import { lazy, Suspense, type ReactNode } from 'react';
-import { BookUser, CalendarDays, Inbox, Settings } from 'lucide-react';
+import { Inbox, Settings } from 'lucide-react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
 import { AppShell } from '@/components/shell/AppShell';
 import { useT } from '@/lib/i18n';
@@ -17,6 +17,8 @@ const MailboxesPage = lazy(() => import('@/pages/Mailboxes'));
 const MyMailboxesPage = lazy(() => import('@/pages/MyMailboxes'));
 const MembersPage = lazy(() => import('@/pages/Members'));
 const MailPage = lazy(() => import('@/pages/Mail'));
+const ContactsPage = lazy(() => import('@/pages/Contacts'));
+const CalendarPage = lazy(() => import('@/pages/Calendar'));
 
 function AdminOnly({ children }: { children: ReactNode }) {
   const { isAdmin } = useSession();
@@ -49,8 +51,8 @@ export default function App() {
           <Route element={<AppShell />}>
             <Route index element={isAdmin ? <OverviewPage /> : <Navigate to="/mailboxes" replace />} />
             <Route path="mail/*" element={<MailPage />} />
-            <Route path="calendar/*" element={soon('calendar', CalendarDays)} />
-            <Route path="contacts/*" element={soon('contacts', BookUser)} />
+            <Route path="calendar/*" element={<CalendarPage />} />
+            <Route path="contacts/*" element={<ContactsPage />} />
             <Route path="mailboxes" element={<MyMailboxesPage />} />
             <Route path="account" element={soon('account', Settings)} />
             <Route path="domains" element={<AdminOnly><DomainsPage /></AdminOnly>} />

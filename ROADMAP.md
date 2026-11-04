@@ -43,10 +43,11 @@ Running as a long-lived container (instead of serverless) is what makes the mail
 - [ ] Conversations that span folders (your replies from Sent inside Inbox threads)
 - [ ] Snooze; desktop notifications polish
 
-### M4 — Calendar and contacts
-- [ ] CalDAV: day / week / month / agenda views, drag to create and move, recurring events, invitations shown in mail
-- [ ] CardDAV: contacts with search, groups, quick compose
-- [ ] Tolerant DAV client (PurelyMail omits `supported-calendar-component-set`; see purelymail-issues#421)
+### M4 — Calendar and contacts ✅
+- [x] CalDAV: day / week / month / agenda views, drag to create, move and resize, recurring events (this event / all events), several calendars with colours
+- [x] CardDAV: contacts with search, groups, quick compose; saved contacts in recipient autocomplete
+- [x] Tolerant DAV client (PurelyMail omits `supported-calendar-component-set`; see purelymail-issues#421)
+- [ ] Invitations (iMIP) shown and answered in mail
 
 ### M5 — Members
 - [x] "My mailboxes": request or create mailboxes within quota, change password, forwarding, delete, mail-app settings
