@@ -23,7 +23,9 @@ A modern, self-hosted web app for [PurelyMail](https://purelymail.com): webmail,
    docker compose up -d
    ```
 
-   The image is built by GitHub Actions for amd64 and arm64 (`ghcr.io/systaven/purelymail-manager`), so the server only downloads it. The compose file caps the container at 256 MB and 0.2 CPU.
+   The image is built by GitHub Actions for amd64 and arm64 and pushed to `ghcr.io/systaven/purelymail-manager` (`:latest` on every push to `main`, `:1.2.3` for tags like `v1.2.3`), so the server only downloads it. The compose file caps the container at 256 MB and 0.2 CPU.
+
+   If the package is private, log in first with a GitHub token that has `read:packages`: `echo $TOKEN | docker login ghcr.io -u <github-user> --password-stdin`. Or make it public under the repository's **Packages → Package settings**.
 4. Put it behind your HTTPS reverse proxy (Caddy, nginx, Traefik...) and set `PUBLIC_URL` to the public address.
 
 Data (the SQLite database) lives in `./data`. Back it up by copying that folder.
@@ -52,7 +54,7 @@ npm run typecheck
 npm run build && npm start
 ```
 
-Stack: [Hono](https://hono.dev) on Node 22, SQLite (better-sqlite3), React 19, Vite, Tailwind CSS v4, Radix primitives, TanStack Query, Clerk.
+Stack: [Hono](https://hono.dev) on Node 24 (22.13+ works), Node's built-in SQLite, React 19, Vite, Tailwind CSS v4, Radix primitives, TanStack Query, Clerk. The server is bundled into a single file, so the Alpine image ships no `node_modules`.
 
 ```
 server/          API server (auth, PurelyMail client, routes, SQLite)

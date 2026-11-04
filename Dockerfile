@@ -1,23 +1,21 @@
-# Builds the web app and server, then ships only what runs them.
+# Builds the web app and the server bundle, then ships only dist/ (no node_modules).
 #   docker build -t purelymail-manager .
-ARG NODE_IMAGE=node:22-bookworm-slim
+ARG NODE_IMAGE=node:24-alpine
 
 FROM ${NODE_IMAGE} AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci --no-audit --no-fund
 COPY . .
-RUN npm run build && npm prune --omit=dev
+RUN npm run build
 
 FROM ${NODE_IMAGE}
 ENV NODE_ENV=production \
     PORT=3000 \
     DATA_DIR=/data \
-    # Keeps the heap small; the whole container fits well under 256 MB.
-    NODE_OPTIONS=--max-old-space-size=160
+    # A small heap keeps the container well under 256 MB.
+    NODE_OPTIONS="--max-old-space-size=160 --disable-warning=ExperimentalWarning"
 WORKDIR /app
-COPY --from=build /app/package.json ./
-COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 RUN mkdir -p /data && chown node:node /data
 USER node

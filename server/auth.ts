@@ -58,7 +58,7 @@ async function syncProfile(clerkUserId: string): Promise<void> {
 async function loadUser(clerkUserId: string): Promise<UserRow> {
   const db = getDb();
   const select = db.prepare('SELECT * FROM users WHERE clerk_user_id = ?');
-  let row = select.get(clerkUserId) as UserRow | undefined;
+  let row = select.get(clerkUserId) as unknown as UserRow | undefined;
   const stale = !row?.synced_at || Date.now() - Date.parse(`${row.synced_at}Z`) > PROFILE_TTL_MS;
   if (!row || stale) {
     try {
@@ -68,7 +68,7 @@ async function loadUser(clerkUserId: string): Promise<UserRow> {
       if (!row) throw error;
       console.warn('Could not refresh Clerk profile:', error);
     }
-    row = select.get(clerkUserId) as UserRow;
+    row = select.get(clerkUserId) as unknown as UserRow;
   } else {
     db.prepare("UPDATE users SET last_seen_at = datetime('now') WHERE clerk_user_id = ?").run(clerkUserId);
   }

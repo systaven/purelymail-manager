@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import Database from 'better-sqlite3';
+import { DatabaseSync } from 'node:sqlite';
 import { config } from './config';
 
 // Schema changes are appended here and applied in order; PRAGMA user_version
@@ -36,28 +36,41 @@ const MIGRATIONS: string[] = [
   `,
 ];
 
-export type DB = Database.Database;
+// Node's built-in SQLite: no native module to compile, so the image builds
+// quickly on any platform.
+export type DB = DatabaseSync;
 
 let db: DB | undefined;
 
 export function getDb(): DB {
   if (db) return db;
   fs.mkdirSync(config.dataDir, { recursive: true });
-  db = new Database(path.join(config.dataDir, 'manager.db'));
-  db.pragma('journal_mode = WAL');
-  db.pragma('foreign_keys = ON');
-  db.pragma('busy_timeout = 5000');
+  db = new DatabaseSync(path.join(config.dataDir, 'manager.db'));
+  db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;');
   migrate(db);
   return db;
 }
 
+// Runs `fn` in a transaction, rolling back if it throws.
+export function transaction<T>(database: DB, fn: () => T): T {
+  database.exec('BEGIN');
+  try {
+    const result = fn();
+    database.exec('COMMIT');
+    return result;
+  } catch (error) {
+    database.exec('ROLLBACK');
+    throw error;
+  }
+}
+
 function migrate(database: DB) {
-  const current = database.pragma('user_version', { simple: true }) as number;
+  const current = Number((database.prepare('PRAGMA user_version').get() as { user_version: number }).user_version);
   for (let i = current; i < MIGRATIONS.length; i++) {
-    database.transaction(() => {
+    transaction(database, () => {
       database.exec(MIGRATIONS[i]);
-      database.pragma(`user_version = ${i + 1}`);
-    })();
+      database.exec(`PRAGMA user_version = ${i + 1}`);
+    });
   }
 }
 
