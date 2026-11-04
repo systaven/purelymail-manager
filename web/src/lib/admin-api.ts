@@ -100,6 +100,9 @@ export const adminApi = {
     body: { newPassword?: string; newUserName?: string; enableSearchIndexing?: boolean; enablePasswordReset?: boolean; requireTwoFactorAuthentication?: boolean }
   ) => api(`/admin/mailboxes/${enc(address)}`, { method: 'PATCH', body }),
   deleteMailbox: (address: string) => api(`/admin/mailboxes/${enc(address)}`, { method: 'DELETE' }),
+  // Show an existing PurelyMail mailbox in the panel / stop showing it (nothing is deleted).
+  adoptMailbox: (address: string) => api('/admin/mailboxes/adopt', { body: { address } }),
+  releaseMailbox: (address: string) => api(`/admin/mailboxes/${enc(address)}/managed`, { method: 'DELETE' }),
   setRecovery: (address: string, body: ResetMethod & { existingTarget?: string }) =>
     api(`/admin/mailboxes/${enc(address)}/recovery`, { method: 'PUT', body }),
   deleteRecovery: (address: string, target: string) => api(`/admin/mailboxes/${enc(address)}/recovery`, { method: 'DELETE', body: { target } }),

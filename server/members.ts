@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { getDb, transaction } from './db';
 import { ApiError } from './errors';
+import { addManaged } from './managed';
 import { purelymail } from './purelymail';
 
 // Members (Clerk users who aren't admins) manage their own mailboxes within
@@ -99,6 +100,7 @@ export const randomPassword = () => randomBytes(24).toString('base64url');
 export async function createOwnedMailbox(clerkUserId: string, localPart: string, domain: string, password?: string) {
   await purelymail.createUser({ localPart, domain, password: password ?? randomPassword(), enablePasswordReset: false, enableSearchIndexing: true });
   getDb().prepare('INSERT INTO mailbox_owners (mailbox, clerk_user_id) VALUES (?, ?)').run(`${localPart}@${domain}`, clerkUserId);
+  addManaged(`${localPart}@${domain}`, clerkUserId);
 }
 
 // Gives an existing mailbox to a member. Anything that let someone else in is
@@ -116,5 +118,6 @@ export async function handOverMailbox(mailbox: string, clerkUserId: string) {
   transaction(getDb(), () => {
     getDb().prepare('DELETE FROM mailbox_owners WHERE mailbox = ?').run(mailbox);
     getDb().prepare('INSERT INTO mailbox_owners (mailbox, clerk_user_id) VALUES (?, ?)').run(mailbox, clerkUserId);
+    addManaged(mailbox, clerkUserId);
   });
 }

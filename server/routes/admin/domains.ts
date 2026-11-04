@@ -43,6 +43,7 @@ export const domainRoutes = new Hono<AppEnv>()
     await purelymail.deleteDomain(name);
     // PurelyMail deletes the domain's mailboxes with it.
     getDb().prepare('DELETE FROM mailbox_owners WHERE mailbox LIKE ?').run(`%@${name}`);
+    getDb().prepare('DELETE FROM managed_mailboxes WHERE mailbox LIKE ?').run(`%@${name}`);
     audit(c.var.session.actor, 'domain.delete', name);
     return c.json({ ok: true });
   });

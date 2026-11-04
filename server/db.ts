@@ -80,6 +80,19 @@ const MIGRATIONS: string[] = [
   );
   CREATE INDEX outbox_due ON outbox (status, send_at);
   `,
+  // The mailboxes this panel shows: created or added here, or owned by a
+  // member. Other mailboxes in the PurelyMail account are left alone.
+  `
+  CREATE TABLE managed_mailboxes (
+    mailbox TEXT PRIMARY KEY,
+    added_by TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  INSERT OR IGNORE INTO managed_mailboxes (mailbox, added_by)
+    SELECT mailbox, 'migration' FROM mailbox_owners
+    UNION SELECT mailbox, 'migration' FROM mailbox_credentials
+    UNION SELECT target, 'migration' FROM audit_log WHERE action IN ('mailbox.create', 'mailbox.update', 'member.assign') AND target LIKE '%@%';
+  `,
 ];
 
 // Node's built-in SQLite: no native module to compile, so the image builds

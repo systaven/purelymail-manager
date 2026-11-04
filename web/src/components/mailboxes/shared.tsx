@@ -124,3 +124,24 @@ export function useDeleteMailbox(onDeleted?: (address: string) => void) {
   };
   return { run, pending: action.isPending };
 }
+
+// Stops showing a mailbox in the panel (it stays in PurelyMail).
+export function useReleaseMailbox(onReleased?: (address: string) => void) {
+  const t = useT(mailboxesMessages);
+  const tc = useT(commonMessages);
+  const confirm = useConfirm();
+  const queryClient = useQueryClient();
+  const action = useAction((address: string) => adminApi.releaseMailbox(address), { invalidate: [adminKeys.overview] });
+  return async (address: string) => {
+    const ok = await confirm({ title: t('removeTitle', { address }), description: t('removeBody'), confirmLabel: t('removeFromPanel'), cancelLabel: tc('cancel') });
+    if (!ok) return;
+    action.mutate(address, {
+      onSuccess: () => {
+        toast.success(t('removed', { address }));
+        onReleased?.(address);
+        queryClient.removeQueries({ queryKey: adminKeys.mailbox(address) });
+        void queryClient.invalidateQueries({ queryKey: adminKeys.mailboxes, exact: true });
+      },
+    });
+  };
+}

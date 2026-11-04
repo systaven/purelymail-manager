@@ -4,6 +4,7 @@ import type { Session } from '../auth';
 import { config } from '../config';
 import { getDb } from '../db';
 import { ApiError } from '../errors';
+import { managedMailboxes } from '../managed';
 import { ownerOf, ownersByMailbox } from '../owners';
 import { purelymail } from '../purelymail';
 import { decrypt, encrypt, hash } from '../secret';
@@ -34,7 +35,7 @@ export async function accessibleMailboxes(session: Session): Promise<string[]> {
   const owners = ownersByMailbox();
   const own = [...owners].filter(([, o]) => o.clerkUserId === session.clerkUserId).map(([m]) => m);
   if (session.role !== 'admin') return own.sort();
-  const unowned = (await purelymail.listUsers()).filter((m) => !owners.has(m));
+  const unowned = (await managedMailboxes()).filter((m) => !owners.has(m));
   return [...new Set([...own, ...unowned])].sort();
 }
 
@@ -125,7 +126,7 @@ export async function openMailbox(c: Context, session: Session, value: unknown):
     if (owner.clerkUserId !== session.clerkUserId) throw new ApiError('This mailbox is private to its owner', 403, 'mailbox_private');
     return privateAccess(c, address, session.clerkUserId);
   }
-  if (session.role !== 'admin' || !(await purelymail.listUsers()).includes(address)) {
+  if (session.role !== 'admin' || !(await managedMailboxes()).includes(address)) {
     throw new ApiError("You don't have access to this mailbox", 403, 'no_mailbox_access');
   }
   return sharedAccess(address);

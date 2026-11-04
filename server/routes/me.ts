@@ -1,3 +1,4 @@
+import { removeManaged } from '../managed';
 import { Hono } from 'hono';
 import { type AppEnv, requireAuth } from '../auth';
 import { audit, getDb } from '../db';
@@ -46,6 +47,7 @@ export const meRoutes = new Hono<AppEnv>()
     const address = ownMailbox(c.var.session.clerkUserId, c.req.param('address'));
     await purelymail.deleteUser(address);
     getDb().prepare('DELETE FROM mailbox_owners WHERE mailbox = ?').run(address);
+    removeManaged(address);
     audit(c.var.session.actor, 'mailbox.delete', address);
     return c.json({ ok: true });
   })

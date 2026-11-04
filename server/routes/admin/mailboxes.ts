@@ -1,15 +1,39 @@
 import { Hono } from 'hono';
 import { type AppEnv } from '../../auth';
 import { audit, getDb } from '../../db';
-import { badRequest } from '../../errors';
+import { ApiError, badRequest } from '../../errors';
+import { addManaged, assertManaged, managedMailboxes, removeManaged, renameManaged } from '../../managed';
 import { assertNotPrivate, ownerOf, ownersByMailbox } from '../../owners';
 import { purelymail, type UserChanges } from '../../purelymail';
 import { bool, domain, email, json, localPart, password, str } from '../../validate';
 
 export const mailboxRoutes = new Hono<AppEnv>()
+  // Every route on one mailbox requires it to be one the panel manages.
+  // ('/:address/*' also matches '/:address' itself.)
+  .use('/:address/*', async (c, next) => {
+    if (c.req.param('address') !== 'adopt') assertManaged(email(c.req.param('address'), 'address'));
+    await next();
+  })
   .get('/', async (c) => {
-    const [names, owners] = [await purelymail.listUsers(), ownersByMailbox()];
-    return c.json(names.sort().map((address) => ({ address, owner: owners.get(address) ?? null })));
+    const [names, owners] = [await managedMailboxes(), ownersByMailbox()];
+    return c.json(names.map((address) => ({ address, owner: owners.get(address) ?? null })));
+  })
+  // Adds a mailbox that already exists in PurelyMail to the panel.
+  .post('/adopt', async (c) => {
+    const address = email((await json(c.req)).address, 'address');
+    if (!(await purelymail.listUsers()).includes(address)) throw new ApiError('No such mailbox', 404, 'mailbox_not_found');
+    addManaged(address, c.var.session.actor);
+    audit(c.var.session.actor, 'mailbox.adopt', address);
+    return c.json({ ok: true });
+  })
+  // Stops showing a mailbox in the panel; it stays in PurelyMail untouched.
+  .delete('/:address/managed', async (c) => {
+    const address = email(c.req.param('address'), 'address');
+    assertNotPrivate(address);
+    removeManaged(address);
+    getDb().prepare('DELETE FROM mailbox_credentials WHERE mailbox = ?').run(address);
+    audit(c.var.session.actor, 'mailbox.release', address);
+    return c.json({ ok: true });
   })
   // Settings and recovery methods; withheld for members' private mailboxes.
   .get('/:address', async (c) => {
@@ -28,6 +52,7 @@ export const mailboxRoutes = new Hono<AppEnv>()
       enableSearchIndexing: bool(body.enableSearchIndexing, 'enableSearchIndexing'),
     };
     await purelymail.createUser(user);
+    addManaged(`${user.localPart}@${user.domain}`, c.var.session.actor);
     audit(c.var.session.actor, 'mailbox.create', `${user.localPart}@${user.domain}`);
     return c.json({ ok: true });
   })
@@ -46,6 +71,7 @@ export const mailboxRoutes = new Hono<AppEnv>()
       if (changes.newUserName.split('@')[1] !== address.split('@')[1]) throw badRequest('Renaming must keep the domain', 'rename_domain');
     }
     await purelymail.modifyUser(address, changes);
+    if (changes.newUserName) renameManaged(address, changes.newUserName);
     audit(c.var.session.actor, 'mailbox.update', address, { ...changes, newPassword: changes.newPassword ? '(changed)' : undefined });
     return c.json({ ok: true });
   })
@@ -53,6 +79,7 @@ export const mailboxRoutes = new Hono<AppEnv>()
     const address = email(c.req.param('address'), 'address');
     await purelymail.deleteUser(address);
     getDb().prepare('DELETE FROM mailbox_owners WHERE mailbox = ?').run(address);
+    removeManaged(address);
     audit(c.var.session.actor, 'mailbox.delete', address);
     return c.json({ ok: true });
   })

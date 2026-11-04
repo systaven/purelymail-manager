@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { type AppEnv, requireAuth } from '../auth';
+import { managedMailboxes } from '../managed';
 import { purelymail } from '../purelymail';
 
 export const accountRoutes = new Hono<AppEnv>()
@@ -10,7 +11,7 @@ export const accountRoutes = new Hono<AppEnv>()
     const [credit, domains, users, rules] = await Promise.all([
       purelymail.checkAccountCredit(),
       purelymail.listDomains(),
-      purelymail.listUsers(),
+      managedMailboxes(),
       purelymail.listRoutingRules(),
     ]);
     const healthy = domains.filter((d) => Object.values(d.dnsSummary ?? {}).every(Boolean)).length;

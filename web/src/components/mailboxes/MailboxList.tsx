@@ -1,4 +1,4 @@
-import { ChevronRight, Copy, Globe, KeyRound, MoreHorizontal, RectangleEllipsis, Trash2 } from 'lucide-react';
+import { ChevronRight, Copy, EyeOff, Globe, KeyRound, MoreHorizontal, RectangleEllipsis, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import {
@@ -22,6 +22,7 @@ export interface RowActions {
   onResetPassword: (address: string) => void;
   onAppPassword: (address: string) => void;
   onDelete: (address: string) => void;
+  onRelease: (address: string) => void;
 }
 
 // Mailboxes grouped by domain, each group in its own card.
@@ -53,7 +54,7 @@ export function MailboxList({ mailboxes, selected, ...actions }: { mailboxes: Ma
   );
 }
 
-function MailboxRow({ mailbox, active, onOpen, onResetPassword, onAppPassword, onDelete }: { mailbox: MailboxSummary; active: boolean } & RowActions) {
+function MailboxRow({ mailbox, active, onOpen, onResetPassword, onAppPassword, onDelete, onRelease }: { mailbox: MailboxSummary; active: boolean } & RowActions) {
   const t = useT(mailboxesMessages);
   const tc = useT(commonMessages);
   const { address, owner } = mailbox;
@@ -102,6 +103,12 @@ function MailboxRow({ mailbox, active, onOpen, onResetPassword, onAppPassword, o
             <Copy />
             {t('copyAddress')}
           </DropdownMenuItem>
+          {!owner && (
+            <DropdownMenuItem onSelect={() => onRelease(address)}>
+              <EyeOff />
+              {t('removeFromPanel')}
+            </DropdownMenuItem>
+          )}
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={() => onDelete(address)} className="text-destructive data-[highlighted]:bg-destructive/10 data-[highlighted]:text-destructive [&_svg]:text-destructive">
             <Trash2 />

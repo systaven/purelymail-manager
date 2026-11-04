@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Check, ChevronDown, Globe, Mailbox, Plus, Search, SearchX, X } from 'lucide-react';
+import { Check, ChevronDown, Download, Globe, Mailbox, Plus, Search, SearchX, X } from 'lucide-react';
 import { useSearchParams } from 'react-router';
 import { PageHeader } from '@/components/PageHeader';
 import { AppPasswordDialog } from '@/components/mailboxes/AppPasswordDialog';
+import { AddExistingDialog } from '@/components/mailboxes/AddExistingDialog';
 import { CreateMailboxDialog } from '@/components/mailboxes/CreateMailboxDialog';
 import { MailboxList, MailboxListSkeleton } from '@/components/mailboxes/MailboxList';
 import { MailboxSheet } from '@/components/mailboxes/MailboxSheet';
 import { ResetPasswordDialog } from '@/components/mailboxes/ResetPasswordDialog';
-import { splitAddress, useDeleteMailbox } from '@/components/mailboxes/shared';
+import { splitAddress, useDeleteMailbox, useReleaseMailbox } from '@/components/mailboxes/shared';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { EmptyState, ErrorBanner } from '@/components/ui/feedback';
@@ -48,6 +49,13 @@ export default function MailboxesPage() {
     setCreating(true);
   };
   const remove = useDeleteMailbox((address) => setSelected((current) => (current === address ? null : current)));
+  const release = useReleaseMailbox((address) => setSelected((current) => (current === address ? null : current)));
+  const [adding, setAdding] = useState(false);
+  const [addKey, setAddKey] = useState(0);
+  const openAdd = () => {
+    setAddKey((k) => k + 1);
+    setAdding(true);
+  };
 
   // Overview's quick action links to /users?new=1.
   const [params, setParams] = useSearchParams();
@@ -115,11 +123,17 @@ export default function MailboxesPage() {
         title={t('title')}
         description={t('description')}
         actions={
+          <div className="flex gap-2">
+          <Button variant="outline" onClick={openAdd}>
+            <Download />
+            {t('addExisting')}
+          </Button>
           <Button onClick={openCreate}>
             <Plus />
             {t('newMailbox')}
             <Kbd className="ml-1 hidden border-primary-foreground/30 bg-primary-foreground/15 text-primary-foreground sm:inline-flex">C</Kbd>
           </Button>
+          </div>
         }
       />
 
@@ -214,6 +228,7 @@ export default function MailboxesPage() {
           onResetPassword={setResetFor}
           onAppPassword={setAppFor}
           onDelete={remove.run}
+          onRelease={release}
         />
       )}
 
@@ -226,6 +241,7 @@ export default function MailboxesPage() {
         deleting={remove.pending}
         onRenamed={setSelected}
       />
+      <AddExistingDialog key={addKey} open={adding} onOpenChange={setAdding} />
       <CreateMailboxDialog key={createKey} open={creating} onOpenChange={setCreating} defaultDomain={activeDomain ?? undefined} />
       <ResetPasswordDialog key={`reset-${resetFor}`} address={resetFor} onClose={() => setResetFor(null)} />
       <AppPasswordDialog key={`app-${appFor}`} address={appFor} onClose={() => setAppFor(null)} />
