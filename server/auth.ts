@@ -55,11 +55,11 @@ async function syncProfile(clerkUserId: string): Promise<void> {
 
 // Loads the user's row, creating it (as a guest) on their first visit and
 // refreshing the Clerk profile when it's stale.
-async function loadUser(clerkUserId: string): Promise<UserRow> {
+async function loadUser(clerkUserId: string, fresh = false): Promise<UserRow> {
   const db = getDb();
   const select = db.prepare('SELECT * FROM users WHERE clerk_user_id = ?');
   let row = select.get(clerkUserId) as unknown as UserRow | undefined;
-  const stale = !row?.synced_at || Date.now() - Date.parse(`${row.synced_at}Z`) > PROFILE_TTL_MS;
+  const stale = fresh || !row?.synced_at || Date.now() - Date.parse(`${row.synced_at}Z`) > PROFILE_TTL_MS;
   if (!row || stale) {
     try {
       await syncProfile(clerkUserId);
@@ -81,7 +81,8 @@ function tokenFrom(c: Context): string | null {
   return getCookie(c, '__session') ?? null;
 }
 
-export async function getSession(c: Context): Promise<Session | null> {
+// fresh: re-read the Clerk profile now (after the user changed it).
+export async function getSession(c: Context, { fresh = false } = {}): Promise<Session | null> {
   const token = tokenFrom(c);
   if (!token) return null;
   let clerkUserId: string;
@@ -96,7 +97,7 @@ export async function getSession(c: Context): Promise<Session | null> {
     return null;
   }
 
-  const user = await loadUser(clerkUserId);
+  const user = await loadUser(clerkUserId, fresh);
   if (user.disabled) throw new ApiError('Your account has been disabled', 403, 'account_disabled');
   // Only a verified address can make someone an admin.
   const listedAdmin = Boolean(user.email && user.email_verified && config.adminEmails.includes(user.email));

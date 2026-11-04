@@ -49,9 +49,9 @@ Running as a long-lived container (instead of serverless) is what makes the mail
 - [x] Tolerant DAV client (PurelyMail omits `supported-calendar-component-set`; see purelymail-issues#421)
 - [ ] Invitations (iMIP) shown and answered in mail
 
-### M5 — Members
+### M5 — Members ✅
 - [x] "My mailboxes": request or create mailboxes within quota, change password, forwarding, delete, mail-app settings
-- [ ] Account page (Clerk profile, sessions, 2FA)
+- [x] Account page: profile, email addresses, password, two-step verification, devices, preferences, delete account (our own UI over Clerk's API)
 
 ### M6 — Polish
 - [ ] Installable PWA, offline cache of recent mail

@@ -14,6 +14,7 @@ A modern, self-hosted web app for [PurelyMail](https://purelymail.com): webmail,
 - Members sign up with Clerk and create or request mailboxes within the quota, domains and approval rules you set. Their mailboxes are private: administrators can delete them but not open or change them
 - Webmail: conversations, live push of new mail, search operators, keyboard shortcuts, rich-text composer with drafts, undo send and scheduled send
 - Calendar (month, week, day, agenda; drag to create, move and resize; recurring events) and contacts (groups, search, quick compose), stored in PurelyMail over CalDAV/CardDAV
+- Account page: profile and photo, email addresses, password, two-step verification with backup codes, signed-in devices, preferences
 - ⌘K / Ctrl+K command palette and keyboard navigation (`g` then `i`, `o`, `d`, `u`, `r`...)
 - Light and dark themes; English, 简体中文, 繁體中文, 日本語
 - Your own name and logo (`BRAND_NAME`, `BRAND_LOGO`)

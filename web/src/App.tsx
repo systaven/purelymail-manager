@@ -1,11 +1,9 @@
 import { lazy, Suspense, type ReactNode } from 'react';
-import { Inbox, Settings } from 'lucide-react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
 import { AppShell } from '@/components/shell/AppShell';
 import { useT } from '@/lib/i18n';
 import { shellMessages } from '@/lib/i18n/messages/shell';
 import { useSession } from '@/lib/session';
-import { ComingSoon } from '@/pages/ComingSoon';
 import LoginPage from '@/pages/Login';
 import { SessionError } from '@/pages/SessionError';
 
@@ -19,6 +17,7 @@ const MembersPage = lazy(() => import('@/pages/Members'));
 const MailPage = lazy(() => import('@/pages/Mail'));
 const ContactsPage = lazy(() => import('@/pages/Contacts'));
 const CalendarPage = lazy(() => import('@/pages/Calendar'));
+const AccountPage = lazy(() => import('@/pages/Account'));
 
 function AdminOnly({ children }: { children: ReactNode }) {
   const { isAdmin } = useSession();
@@ -42,8 +41,6 @@ export default function App() {
   if (error) return <SessionError error={error} />;
   if (!session) return <LoginPage />;
 
-  const soon = (title: keyof typeof shellMessages.en, icon: typeof Inbox) => <ComingSoon title={t(title)} icon={icon} />;
-
   return (
     <BrowserRouter>
       <Suspense fallback={<Splash />}>
@@ -54,7 +51,7 @@ export default function App() {
             <Route path="calendar/*" element={<CalendarPage />} />
             <Route path="contacts/*" element={<ContactsPage />} />
             <Route path="mailboxes" element={<MyMailboxesPage />} />
-            <Route path="account" element={soon('account', Settings)} />
+            <Route path="account" element={<AccountPage />} />
             <Route path="domains" element={<AdminOnly><DomainsPage /></AdminOnly>} />
             <Route path="users" element={<AdminOnly><MailboxesPage /></AdminOnly>} />
             <Route path="routing" element={<AdminOnly><RoutingPage /></AdminOnly>} />
