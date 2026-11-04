@@ -10,6 +10,7 @@ A modern, self-hosted web app for [PurelyMail](https://purelymail.com): webmail,
 - Account overview: credit, domains with DNS health, mailboxes, routing rules
 - Domains with a guided setup that checks each DNS record live; mailboxes (passwords, 2FA, recovery, app passwords); routing rules with an address tester; activity log
 - Only the mailboxes the panel manages are shown: ones created or added here, and members' mailboxes. Other mailboxes in your PurelyMail account are left alone; add one with **Mailboxes → Add existing**
+- PurelyMail's shared domains are listed for administrators, who can create mailboxes on them; they're never offered to members
 - Members sign up with Clerk and create or request mailboxes within the quota, domains and approval rules you set. Their mailboxes are private: administrators can delete them but not open or change them
 - Webmail: conversations, live push of new mail, search operators, keyboard shortcuts, rich-text composer with drafts, undo send and scheduled send
 - Calendar (month, week, day, agenda; drag to create, move and resize; recurring events) and contacts (groups, search, quick compose), stored in PurelyMail over CalDAV/CardDAV

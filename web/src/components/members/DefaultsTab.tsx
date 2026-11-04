@@ -139,5 +139,5 @@ export function DefaultsTab() {
     );
 
   // Remount on new server data so the form starts from what was saved.
-  return <DefaultsForm key={JSON.stringify(defaults.data)} initial={defaults.data} domains={domains.data.map((d) => d.name)} />;
+  return <DefaultsForm key={JSON.stringify(defaults.data)} initial={defaults.data} domains={domains.data.filter((d) => !d.isShared).map((d) => d.name)} />;
 }

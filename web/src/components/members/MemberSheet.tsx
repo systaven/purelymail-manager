@@ -146,7 +146,7 @@ export function MemberSheet({ member, isSelf, onClose }: { member: Member | null
   if (!member) return <Sheet open={false} onOpenChange={(o) => !o && onClose()} />;
   const busy = update.isPending;
   const d = defaults.data;
-  const domainNames = (domains.data ?? []).map((x) => x.name);
+  const domainNames = (domains.data ?? []).filter((x) => !x.isShared).map((x) => x.name);
 
   const askAssign = async () => {
     if (!assignee) return;

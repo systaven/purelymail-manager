@@ -48,7 +48,7 @@ export default function RoutingPage() {
   const isInternal = useCallback((address: string) => mailboxSet.has(address.toLowerCase()), [mailboxSet]);
   // Domains on the account plus any that only appear in rules.
   const domains = useMemo(
-    () => [...new Set([...(domainsQuery.data ?? []).map((d) => d.name), ...rules.map((r) => r.domainName)])].sort(),
+    () => [...new Set([...(domainsQuery.data ?? []).filter((d) => !d.isShared).map((d) => d.name), ...rules.map((r) => r.domainName)])].sort(),
     [domainsQuery.data, rules]
   );
 

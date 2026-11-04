@@ -86,7 +86,7 @@ export default function DomainsPage() {
 
   const list = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return (domains.data ?? []).filter((d) => d.name.includes(q)).sort((a, b) => a.name.localeCompare(b.name));
+    return (domains.data ?? []).filter((d) => d.name.includes(q));
   }, [domains.data, query]);
 
   // Read the selected domain from fresh data so the sheet updates after changes.
@@ -147,6 +147,22 @@ export default function DomainsPage() {
       {list.length > 0 && (
         <ul className="divide-y overflow-hidden rounded-xl border bg-card shadow-xs">
           {list.map((domain) => {
+            // PurelyMail's shared domains: shown for reference, not configurable.
+            if (domain.isShared)
+              return (
+                <li key={domain.name} className="flex items-center gap-4 px-4 py-3.5">
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                    <Globe className="size-4" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-2">
+                      <span className="truncate font-medium">{domain.name}</span>
+                      <Badge>{t('shared')}</Badge>
+                    </span>
+                    <span className="mt-0.5 block text-xs text-muted-foreground">{t('sharedHint')}</span>
+                  </span>
+                </li>
+              );
             const failing = CHECKS.filter(([key]) => !domain.dnsSummary?.[key]).length;
             return (
               <li key={domain.name}>

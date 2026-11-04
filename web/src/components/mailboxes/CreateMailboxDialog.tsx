@@ -33,7 +33,9 @@ export function CreateMailboxDialog({
   const tc = useT(commonMessages);
   const errorText = useErrorText();
   const domains = useQuery({ queryKey: adminKeys.domains, queryFn: adminApi.domains, enabled: open });
-  const names = (domains.data ?? []).map((d) => d.name).sort();
+  // Own domains first (the default), then PurelyMail's shared ones.
+  const names = (domains.data ?? []).map((d) => d.name);
+  const shared = new Set((domains.data ?? []).filter((d) => d.isShared).map((d) => d.name));
 
   const [localPart, setLocalPart] = useState('');
   const [chosen, setChosen] = useState<string | null>(null);
@@ -149,6 +151,7 @@ export function CreateMailboxDialog({
                       <DropdownMenuItem key={name} onSelect={() => setChosen(name)}>
                         <Check className={cn(name !== domain && 'invisible')} />
                         {name}
+                        {shared.has(name) && <span className="ml-auto pl-3 text-xs text-muted-foreground">{t('sharedDomain')}</span>}
                       </DropdownMenuItem>
                     ))}
                   </DropdownMenuContent>

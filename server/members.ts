@@ -78,6 +78,10 @@ export async function checkNewAddress(user: UserRecord, localPart: string, domai
   const limits = limitsFor(user);
   if (RESERVED.has(localPart)) throw new ApiError('Reserved address', 400, 'reserved_address', { name: localPart });
   if (!limits.allowedDomains.includes(domain)) throw new ApiError('Domain not allowed', 403, 'domain_not_allowed', { domain });
+  // PurelyMail's shared domains are for admins only, whatever the settings say.
+  if ((await purelymail.listDomains(true)).some((d) => d.name === domain && d.isShared)) {
+    throw new ApiError('Domain not allowed', 403, 'domain_not_allowed', { domain });
+  }
   const used = ownedMailboxes(user.clerk_user_id).length + pendingRequests(user.clerk_user_id).length;
   if (used >= limits.maxMailboxes) throw new ApiError('Mailbox limit reached', 403, 'quota_reached', { limit: limits.maxMailboxes });
   const address = `${localPart}@${domain}`;
