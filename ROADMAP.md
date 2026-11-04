@@ -31,16 +31,17 @@ Running as a long-lived container (instead of serverless) is what makes the mail
 - [x] Activity log
 - [ ] Branding override from the UI (stored in SQLite) — env vars for now
 
-### M3 — Mail
-- [ ] IMAP connection pool (idle timeout, per-user cap) and IDLE push to the browser over Server-Sent Events
-- [ ] Unified inbox across a member's mailboxes; folder tree with unread counts
-- [ ] Conversation (thread) view with collapsible messages; list density options; reading pane right / bottom / off
-- [ ] Keyboard shortcuts for everything (j/k, e, #, r, a, f, s, x, /, ?), hover and swipe actions
-- [ ] Search with operators (`from:`, `to:`, `subject:`, `has:attachment`, `before:`, `after:`)
-- [ ] Composer: rich text, signatures per mailbox, drag-and-drop attachments, inline images, address autocomplete, drafts saved to the IMAP Drafts folder
-- [ ] Undo send, scheduled send, snooze (server-side timers)
-- [ ] Remote images blocked by default, tracking-pixel removal, suspicious-link warnings, sandboxed HTML rendering
-- [ ] Desktop notifications; private app passwords per member (encrypted, never visible to admins)
+### M3 — Mail ✅
+- [x] IMAP connection pool (idle timeout, connection cap) and push to the browser (IDLE + NOOP fallback over Server-Sent Events)
+- [x] Folders with unread counts, create folders; mailbox switcher
+- [x] Conversation view (reply headers, subject fallback), hover actions, multi-select, optimistic updates with Undo
+- [x] Keyboard shortcuts (j/k, o, u, e, #, s, Shift+U/I, r, a, f, c, x, !, /, ?)
+- [x] Search with operators (`from:`, `to:`, `subject:`, `has:attachment`, `is:unread`, `before:`, `after:`)
+- [x] Reader: sandboxed HTML, remote images blocked until allowed, tracker/script removal, inline images, attachments, unsubscribe link
+- [x] Composer: rich text, recipient chips with autocomplete, attachments (drag/paste), signatures, drafts saved to IMAP, undo send, scheduled send
+- [x] Members' mailbox credentials only in their browser; outbox encrypted at rest
+- [ ] Conversations that span folders (your replies from Sent inside Inbox threads)
+- [ ] Snooze; desktop notifications polish
 
 ### M4 — Calendar and contacts
 - [ ] CalDAV: day / week / month / agenda views, drag to create and move, recurring events, invitations shown in mail

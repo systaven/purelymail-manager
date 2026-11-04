@@ -135,4 +135,8 @@
   :focus-visible {
     @apply outline-none ring-2 ring-ring;
   }
+  /* The composer's editing area shows focus with its caret, not a ring. */
+  .ProseMirror:focus-visible {
+    @apply ring-0;
+  }
 }

@@ -16,6 +16,7 @@ const RoutingPage = lazy(() => import('@/pages/Routing'));
 const MailboxesPage = lazy(() => import('@/pages/Mailboxes'));
 const MyMailboxesPage = lazy(() => import('@/pages/MyMailboxes'));
 const MembersPage = lazy(() => import('@/pages/Members'));
+const MailPage = lazy(() => import('@/pages/Mail'));
 
 function AdminOnly({ children }: { children: ReactNode }) {
   const { isAdmin } = useSession();
@@ -47,7 +48,7 @@ export default function App() {
         <Routes>
           <Route element={<AppShell />}>
             <Route index element={isAdmin ? <OverviewPage /> : <Navigate to="/mailboxes" replace />} />
-            <Route path="mail/*" element={soon('mail', Inbox)} />
+            <Route path="mail/*" element={<MailPage />} />
             <Route path="calendar/*" element={soon('calendar', CalendarDays)} />
             <Route path="contacts/*" element={soon('contacts', BookUser)} />
             <Route path="mailboxes" element={<MyMailboxesPage />} />

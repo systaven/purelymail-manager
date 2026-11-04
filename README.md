@@ -2,7 +2,7 @@
 
 A modern, self-hosted web app for [PurelyMail](https://purelymail.com): webmail, calendar and contacts for your members, and administration of domains, mailboxes and routing for you. PurelyMail remains the mail service; this app runs in one small Docker container (~30 MB RAM idle).
 
-> Status: administration (M2) and member self-service are done. Webmail, calendar and contacts are next; see [ROADMAP.md](ROADMAP.md).
+> Status: administration, member self-service and webmail are done. Calendar and contacts are next; see [ROADMAP.md](ROADMAP.md).
 
 ## Features
 
@@ -10,6 +10,7 @@ A modern, self-hosted web app for [PurelyMail](https://purelymail.com): webmail,
 - Account overview: credit, domains with DNS health, mailboxes, routing rules
 - Domains with a guided setup that checks each DNS record live; mailboxes (passwords, 2FA, recovery, app passwords); routing rules with an address tester; activity log
 - Members sign up with Clerk and create or request mailboxes within the quota, domains and approval rules you set. Their mailboxes are private: administrators can delete them but not open or change them
+- Webmail: conversations, live push of new mail, search operators, keyboard shortcuts, rich-text composer with drafts, undo send and scheduled send
 - ⌘K / Ctrl+K command palette and keyboard navigation (`g` then `i`, `o`, `d`, `u`, `r`...)
 - Light and dark themes; English, 简体中文, 繁體中文, 日本語
 - Your own name and logo (`BRAND_NAME`, `BRAND_LOGO`)
@@ -30,7 +31,17 @@ A modern, self-hosted web app for [PurelyMail](https://purelymail.com): webmail,
    If the package is private, log in first with a GitHub token that has `read:packages`: `echo $TOKEN | docker login ghcr.io -u <github-user> --password-stdin`. Or make it public under the repository's **Packages → Package settings**.
 4. Put it behind your HTTPS reverse proxy (Caddy, nginx, Traefik...) and set `PUBLIC_URL` to the public address.
 
-Data (the SQLite database) lives in `./data`. Back it up by copying that folder.
+Data (the SQLite database and, unless `SECRET_KEY` is set, the encryption key) lives in `./data`. Back it up by copying that folder.
+
+## Webmail and privacy
+
+Webmail signs in to PurelyMail over IMAP/SMTP with an app password the panel creates for each mailbox:
+
+- **Mailboxes nobody owns** (the administrators'): the app password is stored encrypted in SQLite and shared by administrators.
+- **Members' mailboxes**: the app password lives only in that member's browser, in an encrypted HttpOnly cookie. Administrators — and anyone with the database — can't open them. An administrator can still delete a member's mailbox.
+- Mail waiting to be sent (undo send, scheduled send) is kept encrypted, together with the password needed to send it, until it has been sent.
+
+New mail is pushed to the browser (IMAP IDLE + Server-Sent Events). Connections are pooled and closed after five idle minutes.
 
 ## Configuration
 
@@ -43,6 +54,9 @@ Data (the SQLite database) lives in `./data`. Back it up by copying that folder.
 | `CLERK_JWT_KEY` | recommended | Clerk's JWT public key (PEM), so sign-ins are verified without calling Clerk |
 | `BRAND_NAME` | no | Name in the sidebar, sign-in page and browser tab (default `PurelyMail`) |
 | `BRAND_LOGO` | no | Logo: an `https://` URL, or a file path such as `/data/logo.svg` (svg, png, webp, jpg, ico), also used as the favicon |
+| `SECRET_KEY` | no | Encrypts stored webmail credentials and queued mail. Default: a random key created in `DATA_DIR/secret.key` |
+| `MAIL_SAVE_SENT` | no | Save sent mail to the Sent folder (default `true`) |
+| `MAIL_IMAP_*`, `MAIL_SMTP_*`, `MAIL_MAX_CONNECTIONS` | no | Mail server overrides (testing) and the IMAP connection cap (default 40) |
 | `PORT`, `DATA_DIR` | no | Defaults `3000` and `/data` in the image |
 | `PURELYMAIL_API_URL` | no | Override the API base (testing) |
 

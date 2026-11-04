@@ -58,6 +58,28 @@ const MIGRATIONS: string[] = [
   );
   CREATE UNIQUE INDEX mailbox_requests_pending ON mailbox_requests (mailbox) WHERE status = 'pending';
   `,
+  // Webmail. App passwords for mailboxes nobody owns (members' are kept only in
+  // their browser), and mail waiting to be sent (undo send, scheduled send).
+  `
+  CREATE TABLE mailbox_credentials (
+    mailbox TEXT PRIMARY KEY,
+    encrypted_password TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE TABLE outbox (
+    id TEXT PRIMARY KEY,
+    mailbox TEXT NOT NULL,
+    clerk_user_id TEXT NOT NULL,
+    -- Encrypted JSON: the raw message, envelope, a summary for the UI and the
+    -- password to send it with. Deleted once sent.
+    payload TEXT NOT NULL,
+    send_at INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'sending', 'failed')),
+    error TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX outbox_due ON outbox (status, send_at);
+  `,
 ];
 
 // Node's built-in SQLite: no native module to compile, so the image builds

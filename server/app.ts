@@ -11,6 +11,7 @@ import { ApiError } from './errors';
 import { accountRoutes } from './routes/account';
 import { adminRoutes } from './routes/admin';
 import { authRoutes } from './routes/auth';
+import { mailRoutes } from './routes/mail';
 import { meRoutes } from './routes/me';
 
 // Clerk's Frontend API host is encoded in the publishable key
@@ -54,7 +55,9 @@ export function createApp() {
         scriptSrc: ["'self'", ...clerkSources, 'https://challenges.cloudflare.com'],
         // Clerk's components inject their styles at runtime.
         styleSrc: ["'self'", "'unsafe-inline'"],
-        imgSrc: ["'self'", 'data:', 'blob:', 'https://img.clerk.com', ...(logo.origin ? [logo.origin] : [])],
+        // https: so "show images" works in HTML mail: its sandboxed iframe
+        // inherits this policy. Remote images stay blocked until allowed.
+        imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
         fontSrc: ["'self'", 'data:'],
         connectSrc: ["'self'", ...clerkSources],
         frameSrc: ["'self'", 'https://challenges.cloudflare.com'],
@@ -73,7 +76,10 @@ export function createApp() {
   const api = new Hono()
     // JSON can't be sent cross-site without CORS; this also stops cross-site form posts.
     .use(csrf())
-    .use(bodyLimit({ maxSize: 1024 * 1024 }))
+    // Sending and drafts carry attachments (up to 10 MB, base64-encoded).
+    .use((c, next) =>
+      bodyLimit({ maxSize: /^\/api\/mail\/(send|drafts)$/.test(c.req.path) ? 15 * 1024 * 1024 : 1024 * 1024 })(c, next)
+    )
     .get('/health', (c) => c.json({ ok: true }))
     // Settings the web app needs before anyone signs in.
     .get('/config', (c) =>
@@ -83,6 +89,7 @@ export function createApp() {
     .route('/account', accountRoutes)
     .route('/admin', adminRoutes)
     .route('/me', meRoutes)
+    .route('/mail', mailRoutes)
     .notFound(() => {
       throw new ApiError('Not found', 404, 'not_found');
     });

@@ -10,6 +10,7 @@ import { commonMessages } from '@/lib/i18n/messages/common';
 import { shellMessages } from '@/lib/i18n/messages/shell';
 import { useBrand, useSession } from '@/lib/session';
 import { cn } from '@/lib/utils';
+import { ComposerHost } from '@/components/compose/ComposerHost';
 import { CommandPalette } from './CommandPalette';
 import { Logo } from './Logo';
 import { adminNav, appNav, memberNav, type NavItem } from './nav';
@@ -226,6 +227,8 @@ export function AppShell() {
         </div>
       </div>
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} nav={nav} />
+      {/* Composer windows float over every page (e.g. "email this contact"). */}
+      <ComposerHost />
     </TooltipProvider>
   );
 }

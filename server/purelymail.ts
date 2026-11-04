@@ -89,13 +89,22 @@ async function call<T = unknown>(endpoint: string, body: Record<string, unknown>
   return data.result;
 }
 
+// listUser is called on most webmail requests (access checks), so it's cached
+// briefly and dropped whenever mailboxes change.
+const USERS_TTL_MS = 60_000;
+let usersCache: { at: number; users: Promise<string[]> } | null = null;
+const dropUsers = <T>(result: T) => {
+  usersCache = null;
+  return result;
+};
+
 export const purelymail = {
   checkAccountCredit: () => call<{ credit: string }>('checkAccountCredit'),
 
   listDomains: async (includeShared = false) =>
     (await call<{ domains: DomainInfo[] }>('listDomains', { includeShared })).domains,
   addDomain: (domainName: string) => call('addDomain', { domainName }),
-  deleteDomain: (name: string) => call('deleteDomain', { name }),
+  deleteDomain: (name: string) => call('deleteDomain', { name }).then(dropUsers),
   updateDomainSettings: (
     name: string,
     settings: { allowAccountReset?: boolean; symbolicSubaddressing?: boolean; recheckDns?: boolean }
@@ -103,7 +112,14 @@ export const purelymail = {
     call('updateDomainSettings', { name, ...settings }),
   getOwnershipCode: () => call<{ code: string }>('getOwnershipCode'),
 
-  listUsers: async () => (await call<{ users: string[] }>('listUser')).users ?? [],
+  listUsers: (): Promise<string[]> => {
+    if (!usersCache || Date.now() - usersCache.at > USERS_TTL_MS) {
+      const users = call<{ users: string[] }>('listUser').then((r) => r.users ?? []);
+      usersCache = { at: Date.now(), users };
+      users.catch(() => (usersCache = null));
+    }
+    return usersCache.users.then((users) => [...users]);
+  },
   getUser: (userName: string) => call<UserInfo>('getUser', { userName }),
   createUser: (user: NewUser) =>
     call('createUser', {
@@ -113,9 +129,9 @@ export const purelymail = {
       enablePasswordReset: user.enablePasswordReset ?? false,
       enableSearchIndexing: user.enableSearchIndexing ?? true,
       sendWelcomeEmail: false,
-    }),
-  modifyUser: (userName: string, changes: UserChanges) => call('modifyUser', { userName, ...changes }),
-  deleteUser: (userName: string) => call('deleteUser', { userName }),
+    }).then(dropUsers),
+  modifyUser: (userName: string, changes: UserChanges) => call('modifyUser', { userName, ...changes }).then(dropUsers),
+  deleteUser: (userName: string) => call('deleteUser', { userName }).then(dropUsers),
 
   listRoutingRules: async () => (await call<{ rules: RoutingRule[] }>('listRoutingRules')).rules ?? [],
   createRoutingRule: (rule: Omit<RoutingRule, 'id'>) => call('createRoutingRule', { ...rule }),
