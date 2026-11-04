@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { HTMLAttributes } from 'react';
 import { cn } from '@/lib/utils';
 
@@ -29,9 +30,29 @@ function initials(name: string) {
 }
 
 // Initials on a colour that stays the same for a given name.
-export function Avatar({ name, className }: { name: string; className?: string }) {
+export function Avatar({ name, src, className }: { name: string; src?: string | null; className?: string }) {
+  // A picture (e.g. the Clerk profile photo) when there is one; initials otherwise
+  // or if it fails to load.
+  const [failed, setFailed] = useState<string | null>(null);
   let hash = 0;
   for (const ch of name.toLowerCase()) hash = (hash * 31 + ch.charCodeAt(0)) | 0;
+  const usable = src && /^(https:|data:image\/|blob:)/.test(src) ? src : null;
+  if (usable && failed !== usable) {
+    return (
+      <img
+        ref={(img) => {
+          // Errors before React attached its handler still count.
+          if (img?.complete && img.naturalWidth === 0) setFailed(usable);
+        }}
+        src={usable}
+        alt=""
+        aria-hidden
+        referrerPolicy="no-referrer"
+        onError={() => setFailed(usable)}
+        className={cn('inline-block size-8 shrink-0 select-none rounded-full bg-muted object-cover', className)}
+      />
+    );
+  }
   return (
     <span
       aria-hidden

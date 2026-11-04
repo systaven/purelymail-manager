@@ -1,4 +1,5 @@
 import { Check, Languages, LogOut, Monitor, Moon, Sun, UserCog } from 'lucide-react';
+import { useUser } from '@clerk/react';
 import { useNavigate } from 'react-router';
 import { Avatar } from '@/components/ui/misc';
 import {
@@ -33,6 +34,7 @@ export function UserMenu({ collapsed = false }: { collapsed?: boolean }) {
   const { theme, setTheme } = useTheme();
   const { locale, setLocale } = useLocale();
   const navigate = useNavigate();
+  const { user } = useUser();
   const name = session?.name || session?.email || '';
 
   return (
@@ -43,7 +45,7 @@ export function UserMenu({ collapsed = false }: { collapsed?: boolean }) {
           collapsed && 'justify-center'
         )}
       >
-        <Avatar name={name} className="size-7" />
+        <Avatar name={name} src={user?.imageUrl} className="size-7" />
         {!collapsed && (
           <span className="min-w-0 flex-1">
             <span className="block truncate text-sm font-medium">{name}</span>
