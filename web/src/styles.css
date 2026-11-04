@@ -1,5 +1,6 @@
 @import 'tailwindcss';
 @import '@fontsource-variable/inter';
+@import '@clerk/ui/themes/shadcn.css';
 
 /* Dark mode follows the .dark class on <html> (set by theme-init.js and useTheme). */
 @custom-variant dark (&:where(.dark, .dark *));
@@ -33,6 +34,11 @@
   --sidebar-accent: oklch(0.935 0.008 286);
   --selection: oklch(0.94 0.035 277);
   --radius: 0.625rem;
+  /* Used by Clerk's shadcn theme. */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --color-black: #000;
 }
 
 .dark {
@@ -95,6 +101,13 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
   --animate-in: enter 150ms ease-out;
+}
+
+@keyframes sheet-in {
+  from {
+    transform: translateX(16px);
+    opacity: 0;
+  }
 }
 
 @keyframes enter {

@@ -4,7 +4,7 @@ import { defineMessages } from '..';
 export const shellMessages = defineMessages({
   en: {
     mail: 'Mail', calendar: 'Calendar', contacts: 'Contacts', admin: 'Administration',
-    overview: 'Overview', domains: 'Domains', users: 'Users', routing: 'Routing', guests: 'Guests', settings: 'Settings',
+    overview: 'Overview', domains: 'Domains', users: 'Mailboxes', routing: 'Routing', guests: 'Members', settings: 'Settings',
     myMailboxes: 'My mailboxes', account: 'Account', signOut: 'Sign out', roleAdmin: 'Administrator', roleGuest: 'Member',
     theme: 'Theme', light: 'Light', dark: 'Dark', system: 'System', language: 'Language',
     openMenu: 'Open menu', closeMenu: 'Close menu', collapse: 'Collapse sidebar', expand: 'Expand sidebar',
@@ -14,7 +14,7 @@ export const shellMessages = defineMessages({
   },
   'zh-CN': {
     mail: '邮件', calendar: '日历', contacts: '通讯录', admin: '管理',
-    overview: '概览', domains: '域名', users: '用户', routing: '路由规则', guests: '成员', settings: '设置',
+    overview: '概览', domains: '域名', users: '邮箱', routing: '路由规则', guests: '成员', settings: '设置',
     myMailboxes: '我的邮箱', account: '账号', signOut: '退出登录', roleAdmin: '管理员', roleGuest: '成员',
     theme: '主题', light: '浅色', dark: '深色', system: '跟随系统', language: '语言',
     openMenu: '打开菜单', closeMenu: '关闭菜单', collapse: '收起侧边栏', expand: '展开侧边栏',
@@ -24,7 +24,7 @@ export const shellMessages = defineMessages({
   },
   'zh-TW': {
     mail: '郵件', calendar: '行事曆', contacts: '通訊錄', admin: '管理',
-    overview: '概覽', domains: '網域', users: '使用者', routing: '路由規則', guests: '成員', settings: '設定',
+    overview: '概覽', domains: '網域', users: '信箱', routing: '路由規則', guests: '成員', settings: '設定',
     myMailboxes: '我的信箱', account: '帳號', signOut: '登出', roleAdmin: '管理員', roleGuest: '成員',
     theme: '主題', light: '淺色', dark: '深色', system: '跟隨系統', language: '語言',
     openMenu: '開啟選單', closeMenu: '關閉選單', collapse: '收合側邊欄', expand: '展開側邊欄',
@@ -34,7 +34,7 @@ export const shellMessages = defineMessages({
   },
   ja: {
     mail: 'メール', calendar: 'カレンダー', contacts: '連絡先', admin: '管理',
-    overview: '概要', domains: 'ドメイン', users: 'ユーザー', routing: 'ルーティング', guests: 'メンバー', settings: '設定',
+    overview: '概要', domains: 'ドメイン', users: 'メールボックス', routing: 'ルーティング', guests: 'メンバー', settings: '設定',
     myMailboxes: 'マイメールボックス', account: 'アカウント', signOut: 'サインアウト', roleAdmin: '管理者', roleGuest: 'メンバー',
     theme: 'テーマ', light: 'ライト', dark: 'ダーク', system: 'システム', language: '言語',
     openMenu: 'メニューを開く', closeMenu: 'メニューを閉じる', collapse: 'サイドバーを折りたたむ', expand: 'サイドバーを展開',

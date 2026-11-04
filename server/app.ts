@@ -9,7 +9,9 @@ import { secureHeaders } from 'hono/secure-headers';
 import { config } from './config';
 import { ApiError } from './errors';
 import { accountRoutes } from './routes/account';
+import { adminRoutes } from './routes/admin';
 import { authRoutes } from './routes/auth';
+import { meRoutes } from './routes/me';
 
 // Clerk's Frontend API host is encoded in the publishable key
 // (pk_live_<base64("clerk.example.com$")>); the page loads Clerk from there.
@@ -79,6 +81,8 @@ export function createApp() {
     )
     .route('/auth', authRoutes)
     .route('/account', accountRoutes)
+    .route('/admin', adminRoutes)
+    .route('/me', meRoutes)
     .notFound(() => {
       throw new ApiError('Not found', 404, 'not_found');
     });

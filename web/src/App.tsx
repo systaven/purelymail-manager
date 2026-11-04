@@ -1,5 +1,5 @@
 import { lazy, Suspense, type ReactNode } from 'react';
-import { BookUser, CalendarDays, Globe, Inbox, Mailbox, Route as RouteIcon, Settings, Users, UsersRound } from 'lucide-react';
+import { BookUser, CalendarDays, Inbox, Mailbox, Settings, UsersRound } from 'lucide-react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
 import { AppShell } from '@/components/shell/AppShell';
 import { useT } from '@/lib/i18n';
@@ -10,6 +10,10 @@ import LoginPage from '@/pages/Login';
 import { SessionError } from '@/pages/SessionError';
 
 const OverviewPage = lazy(() => import('@/pages/Overview'));
+const DomainsPage = lazy(() => import('@/pages/Domains'));
+const SettingsPage = lazy(() => import('@/pages/Settings'));
+const RoutingPage = lazy(() => import('@/pages/Routing'));
+const MailboxesPage = lazy(() => import('@/pages/Mailboxes'));
 
 function AdminOnly({ children }: { children: ReactNode }) {
   const { isAdmin } = useSession();
@@ -46,11 +50,11 @@ export default function App() {
             <Route path="contacts/*" element={soon('contacts', BookUser)} />
             <Route path="mailboxes" element={soon('myMailboxes', Mailbox)} />
             <Route path="account" element={soon('account', Settings)} />
-            <Route path="domains" element={<AdminOnly>{soon('domains', Globe)}</AdminOnly>} />
-            <Route path="users" element={<AdminOnly>{soon('users', Users)}</AdminOnly>} />
-            <Route path="routing" element={<AdminOnly>{soon('routing', RouteIcon)}</AdminOnly>} />
+            <Route path="domains" element={<AdminOnly><DomainsPage /></AdminOnly>} />
+            <Route path="users" element={<AdminOnly><MailboxesPage /></AdminOnly>} />
+            <Route path="routing" element={<AdminOnly><RoutingPage /></AdminOnly>} />
             <Route path="guests" element={<AdminOnly>{soon('guests', UsersRound)}</AdminOnly>} />
-            <Route path="settings" element={<AdminOnly>{soon('settings', Settings)}</AdminOnly>} />
+            <Route path="settings" element={<AdminOnly><SettingsPage /></AdminOnly>} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

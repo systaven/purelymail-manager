@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
 import App from './App';
+import { ConfirmProvider } from './components/ui/confirm';
 import { ApiClientError } from './lib/api';
 import { I18nProvider } from './lib/i18n';
 import { SessionProvider } from './lib/session';
@@ -31,7 +32,9 @@ createRoot(document.getElementById('root')!).render(
       <ThemeProvider>
         <QueryClientProvider client={queryClient}>
           <SessionProvider>
-            <App />
+            <ConfirmProvider>
+              <App />
+            </ConfirmProvider>
           </SessionProvider>
           <ThemedToaster />
         </QueryClientProvider>

@@ -34,6 +34,30 @@ const MIGRATIONS: string[] = [
     details TEXT
   );
   `,
+  // Mailboxes that belong to a member. They're private: admins can delete them
+  // but not reset their password, change recovery or create app passwords.
+  `
+  CREATE TABLE mailbox_owners (
+    mailbox TEXT PRIMARY KEY,
+    clerk_user_id TEXT NOT NULL REFERENCES users (clerk_user_id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX mailbox_owners_user ON mailbox_owners (clerk_user_id);
+  `,
+  // Members asking for a mailbox when their account needs approval.
+  `
+  CREATE TABLE mailbox_requests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    clerk_user_id TEXT NOT NULL REFERENCES users (clerk_user_id) ON DELETE CASCADE,
+    mailbox TEXT NOT NULL,
+    note TEXT,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'cancelled')),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    decided_at TEXT,
+    decided_by TEXT
+  );
+  CREATE UNIQUE INDEX mailbox_requests_pending ON mailbox_requests (mailbox) WHERE status = 'pending';
+  `,
 ];
 
 // Node's built-in SQLite: no native module to compile, so the image builds

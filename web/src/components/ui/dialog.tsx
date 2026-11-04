@@ -17,7 +17,7 @@ export const DialogContent = ({ className, ...props }: ComponentProps<typeof Pri
     <Primitive.Overlay className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px]" />
     <Primitive.Content
       className={cn(
-        'fixed left-1/2 top-[12vh] z-50 w-[calc(100vw-2rem)] max-w-lg -translate-x-1/2 animate-in rounded-xl border bg-popover text-popover-foreground shadow-2xl',
+        'fixed left-1/2 top-[12vh] z-50 outline-none focus-visible:ring-0 w-[calc(100vw-2rem)] max-w-lg -translate-x-1/2 animate-in rounded-xl border bg-popover text-popover-foreground shadow-2xl',
         className
       )}
       {...props}

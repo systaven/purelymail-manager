@@ -86,7 +86,8 @@ export default function LoginPage() {
             <Logo className="mb-3 size-10 rounded-xl" />
             <span className="text-lg font-semibold">{brand.name}</span>
           </div>
-          <SignIn routing="hash" />
+          {/* withSignUp keeps sign-up inside this widget instead of Clerk's hosted page. */}
+          <SignIn routing="hash" withSignUp />
         </div>
       </div>
     </div>

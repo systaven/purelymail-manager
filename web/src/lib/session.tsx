@@ -1,11 +1,10 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { ClerkProvider, useAuth, useClerk } from '@clerk/react';
-import { dark } from '@clerk/ui/themes';
+import { shadcn } from '@clerk/ui/themes';
 import { jaJP, zhCN, zhTW } from '@clerk/localizations';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, setTokenGetter } from './api';
 import { useLocale, type Locale } from './i18n';
-import { useTheme } from './theme';
 
 export interface Session {
   role: 'admin' | 'guest';
@@ -67,7 +66,6 @@ function useBrandDocument(brand: Brand | undefined) {
 export function SessionProvider({ children }: { children: ReactNode }) {
   const config = useQuery({ queryKey: ['config'], queryFn: () => api<PublicConfig>('/config'), staleTime: Infinity });
   const { locale } = useLocale();
-  const { isDark } = useTheme();
   useBrandDocument(config.data?.brand);
 
   if (config.isPending) return null;
@@ -80,10 +78,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       <ClerkProvider
         publishableKey={config.data.clerkPublishableKey}
         localization={CLERK_LOCALES[locale]}
-        appearance={{
-          theme: isDark ? dark : undefined,
-          variables: { colorPrimary: isDark ? '#818cf8' : '#4f46e5', borderRadius: '0.625rem' },
-        }}
+        // Clerk's shadcn theme reads our CSS tokens (--card, --primary...), so its
+        // widgets follow light/dark with the page instead of Clerk's own theme.
+        appearance={{ theme: shadcn, variables: { borderRadius: '0.625rem', fontFamily: 'inherit' } }}
+        // Clerk's own links and redirects come back to this app's sign-in page.
+        signInUrl="/"
         signInFallbackRedirectUrl="/"
         signUpFallbackRedirectUrl="/"
       >

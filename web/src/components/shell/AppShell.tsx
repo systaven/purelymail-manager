@@ -171,14 +171,16 @@ export function AppShell() {
         const target = nav.find((item) => item.goKey === e.key.toLowerCase());
         if (target) {
           e.preventDefault();
+          // Pages have their own single-key shortcuts (c = create...); this key was ours.
+          e.stopImmediatePropagation();
           navigate(target.to);
         }
         return;
       }
       if (e.key === 'g') pendingGo.current = window.setTimeout(() => (pendingGo.current = null), 1200);
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
   });
 
   const current = nav.find((item) => (item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to)));
