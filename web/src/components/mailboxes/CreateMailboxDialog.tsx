@@ -18,17 +18,20 @@ import { useErrorText } from '@/lib/i18n/useErrorText';
 import { useAction } from '@/lib/mutation';
 import { cn } from '@/lib/utils';
 import { PasswordField } from './PasswordField';
-import { copyText, DialogShell, MIN_PASSWORD } from './shared';
+import { DialogShell, MIN_PASSWORD } from './shared';
 
-// Remount (new key) each time it opens so the form starts fresh.
+// Remount (new key) each time it opens so the form starts fresh. Without a
+// password the server sets a random one; onConnect opens the mail-app guide.
 export function CreateMailboxDialog({
   open,
   onOpenChange,
   defaultDomain,
+  onConnect,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   defaultDomain?: string;
+  onConnect?: (address: string) => void;
 }) {
   const t = useT(mailboxesMessages);
   const tc = useT(commonMessages);
@@ -41,6 +44,7 @@ export function CreateMailboxDialog({
   const [localPart, setLocalPart] = useState('');
   const [chosen, setChosen] = useState<string | null>(null);
   const [password, setPassword] = useState('');
+  const [setNow, setSetNow] = useState(false);
   const [reset, setReset] = useState(true);
   const [indexing, setIndexing] = useState(true);
   const [tried, setTried] = useState(false);
@@ -73,7 +77,8 @@ export function CreateMailboxDialog({
   const existing = Boolean((current?.exists && !current.managed) || createFoundIt);
   const alreadyInPanel = Boolean(current?.managed);
   const [keepPassword, setKeepPassword] = useState(true);
-  const needsPassword = !existing || !keepPassword;
+  // A new mailbox gets a password only if asked; an existing one when replacing it.
+  const needsPassword = existing ? !keepPassword : setNow;
 
   const errors = {
     local: tried && !localPart.trim() ? t('localRequired') : alreadyInPanel ? t('alreadyInPanel') : null,
@@ -111,13 +116,13 @@ export function CreateMailboxDialog({
       return;
     }
     action.mutate(
-      { localPart: local, domain, password, enablePasswordReset: reset, enableSearchIndexing: indexing },
+      { localPart: local, domain, password: setNow ? password : undefined, enablePasswordReset: reset, enableSearchIndexing: indexing },
       {
         onSuccess: () => {
-          const credentials = `${t('address')}: ${address}\n${t('password')}: ${password}\nIMAP: imap.purelymail.com:993 (SSL)\nSMTP: smtp.purelymail.com:465 (SSL)`;
-          toast.success(t('created', { address }), {
+          const created = address.toLowerCase();
+          toast.success(t('created', { address: created }), {
             duration: 12000,
-            action: { label: t('copyCredentials'), onClick: () => copyText(credentials, t('credentialsCopied')) },
+            action: onConnect ? { label: t('connectApp'), onClick: () => onConnect(created) } : undefined,
           });
           onOpenChange(false);
         },
@@ -231,15 +236,26 @@ export function CreateMailboxDialog({
             </div>
           )}
 
-          {needsPassword && (
+          {existing && needsPassword && (
             <div className="space-y-1.5">
-              <Label htmlFor="create-password">{existing ? t('newPassword') : t('password')}</Label>
+              <Label htmlFor="create-password">{t('newPassword')}</Label>
               <PasswordField id="create-password" value={password} onChange={setPassword} error={errors.password} />
             </div>
           )}
 
           {!existing && (
             <div className="divide-y rounded-lg border">
+              <div>
+                <ToggleRow id="create-set-password" label={t('setPasswordNow')} hint={t('setPasswordNowHint')} checked={setNow} onChange={setSetNow} />
+                {setNow && (
+                  <div className="px-3 pb-3">
+                    <Label htmlFor="create-password" className="sr-only">
+                      {t('password')}
+                    </Label>
+                    <PasswordField id="create-password" value={password} onChange={setPassword} error={errors.password} autoFocus />
+                  </div>
+                )}
+              </div>
               <ToggleRow id="create-reset" label={t('passwordReset')} hint={t('passwordResetHint')} checked={reset} onChange={setReset} />
               <ToggleRow id="create-indexing" label={t('searchIndexing')} hint={t('searchIndexingHint')} checked={indexing} onChange={setIndexing} />
             </div>

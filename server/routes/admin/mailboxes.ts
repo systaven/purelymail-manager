@@ -1,3 +1,4 @@
+import { randomPassword } from '../../members';
 import { Hono } from 'hono';
 import { type AppEnv } from '../../auth';
 import { audit, getDb } from '../../db';
@@ -61,7 +62,8 @@ export const mailboxRoutes = new Hono<AppEnv>()
     const user = {
       localPart: localPart(body.localPart),
       domain: domain(body.domain),
-      password: password(body.password),
+      // Random unless one is given; mail apps get one through the setup guide.
+      password: body.password ? password(body.password) : randomPassword(),
       enablePasswordReset: bool(body.enablePasswordReset, 'enablePasswordReset'),
       enableSearchIndexing: bool(body.enableSearchIndexing, 'enableSearchIndexing'),
     };

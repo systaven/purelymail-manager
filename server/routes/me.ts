@@ -5,7 +5,7 @@ import { Hono } from 'hono';
 import { type AppEnv, requireAuth } from '../auth';
 import { audit, getDb } from '../db';
 import { ApiError } from '../errors';
-import { checkNewAddress, createOwnedMailbox, getUser, limitsFor, ownedMailboxes, pendingRequests } from '../members';
+import { checkNewAddress, createOwnedMailbox, getUser, limitsFor, ownedMailboxes, pendingRequests, randomPassword } from '../members';
 import { purelymail } from '../purelymail';
 import { bool, domain, email, emails, json, localPart, password, str } from '../validate';
 
@@ -39,7 +39,9 @@ export const meRoutes = new Hono<AppEnv>()
       audit(c.var.session.actor, 'request.create', address);
       return c.json({ status: 'requested' });
     }
-    await createOwnedMailbox(user.clerk_user_id, local, address.split('@')[1], password(body.password));
+    // A random password by default: mail apps get one through the setup guide.
+    const chosen = limits.mailApps && body.password ? password(body.password) : undefined;
+    await createOwnedMailbox(user.clerk_user_id, local, address.split('@')[1], chosen);
     audit(c.var.session.actor, 'mailbox.create', address);
     return c.json({ status: 'created' });
   })
@@ -58,7 +60,10 @@ export const meRoutes = new Hono<AppEnv>()
     const body = await json(c.req);
     const address = email(body.address, 'address');
     const current = str(body.password, 'password', { max: 200 });
-    const newPassword = body.newPassword === undefined || body.newPassword === '' ? undefined : password(body.newPassword);
+    const limits = limitsFor(user);
+    // Without mail-app access the password they proved with stops working:
+    // the mailbox gets a random one (webmail doesn't need it).
+    const newPassword = !limits.mailApps ? randomPassword() : body.newPassword === undefined || body.newPassword === '' ? undefined : password(body.newPassword);
 
     const now = Date.now();
     const recent = (claimFailures.get(user.clerk_user_id) ?? []).filter((t) => now - t < CLAIM_WINDOW_MS);
@@ -67,7 +72,6 @@ export const meRoutes = new Hono<AppEnv>()
     const owner = ownerOf(address);
     if (owner?.clerkUserId === user.clerk_user_id) throw new ApiError('Already yours', 409, 'already_yours');
     if (owner || isManaged(address)) throw new ApiError('Managed by the panel', 409, 'mailbox_managed');
-    const limits = limitsFor(user);
     if (ownedMailboxes(user.clerk_user_id).length + pendingRequests(user.clerk_user_id).length >= limits.maxMailboxes) {
       throw new ApiError('Mailbox limit reached', 403, 'quota_reached', { limit: limits.maxMailboxes });
     }
@@ -94,6 +98,7 @@ export const meRoutes = new Hono<AppEnv>()
   })
   .post('/mailboxes/:address/password', async (c) => {
     const address = ownMailbox(c.var.session.clerkUserId, c.req.param('address'));
+    if (!limitsFor(getUser(c.var.session.clerkUserId)).mailApps) throw new ApiError('Mail apps are turned off for you', 403, 'mail_apps_disabled');
     await purelymail.modifyUser(address, { newPassword: password((await json(c.req)).password) });
     audit(c.var.session.actor, 'mailbox.password', address);
     return c.json({ ok: true });

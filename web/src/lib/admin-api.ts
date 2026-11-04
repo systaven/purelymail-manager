@@ -93,7 +93,8 @@ export const adminApi = {
 
   mailboxes: () => api<MailboxSummary[]>('/admin/mailboxes'),
   mailbox: (address: string) => api<MailboxDetail>(`/admin/mailboxes/${enc(address)}`),
-  createMailbox: (body: { localPart: string; domain: string; password: string; enablePasswordReset?: boolean; enableSearchIndexing?: boolean }) =>
+  // Without a password the server sets a random one.
+  createMailbox: (body: { localPart: string; domain: string; password?: string; enablePasswordReset?: boolean; enableSearchIndexing?: boolean }) =>
     api('/admin/mailboxes', { body }),
   updateMailbox: (
     address: string,

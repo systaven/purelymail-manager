@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronRight, Clock, Inbox, Search, UsersRound } from 'lucide-react';
+import { ChevronRight, Clock, Inbox, MailX, Search, UsersRound } from 'lucide-react';
 import { EmptyState, ErrorBanner } from '@/components/ui/feedback';
 import { Input } from '@/components/ui/input';
 import { Avatar, Badge, Kbd, Skeleton } from '@/components/ui/misc';
@@ -115,6 +115,11 @@ export function MembersTab() {
                   <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
                     <span className="truncate font-medium">{memberLabel(m)}</span>
                     <MemberBadges member={m} isSelf={isSelf(m)} />
+                    {!m.limits.mailApps && (
+                      <Badge className="gap-1 bg-muted text-muted-foreground" title={t('noMailAppsTitle')}>
+                        <MailX className="size-3" /> {t('noMailApps')}
+                      </Badge>
+                    )}
                     {m.pendingRequests > 0 && <Badge className="bg-warning/15 text-foreground">{t('pendingCount', { n: m.pendingRequests })}</Badge>}
                   </span>
                   {m.name && m.email && <span className="mt-0.5 block truncate text-xs text-muted-foreground">{m.email}</span>}

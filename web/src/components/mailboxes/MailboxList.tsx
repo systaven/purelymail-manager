@@ -1,4 +1,4 @@
-import { ChevronRight, Copy, EyeOff, Globe, KeyRound, MoreHorizontal, RectangleEllipsis, Trash2 } from 'lucide-react';
+import { ChevronRight, Copy, EyeOff, Globe, KeyRound, MoreHorizontal, RectangleEllipsis, Send, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import {
@@ -21,6 +21,7 @@ export interface RowActions {
   onOpen: (address: string) => void;
   onResetPassword: (address: string) => void;
   onAppPassword: (address: string) => void;
+  onConnectApp: (address: string) => void;
   onDelete: (address: string) => void;
   onRelease: (address: string) => void;
 }
@@ -54,7 +55,7 @@ export function MailboxList({ mailboxes, selected, ...actions }: { mailboxes: Ma
   );
 }
 
-function MailboxRow({ mailbox, active, onOpen, onResetPassword, onAppPassword, onDelete, onRelease }: { mailbox: MailboxSummary; active: boolean } & RowActions) {
+function MailboxRow({ mailbox, active, onOpen, onResetPassword, onAppPassword, onConnectApp, onDelete, onRelease }: { mailbox: MailboxSummary; active: boolean } & RowActions) {
   const t = useT(mailboxesMessages);
   const tc = useT(commonMessages);
   const { address, owner } = mailbox;
@@ -89,6 +90,10 @@ function MailboxRow({ mailbox, active, onOpen, onResetPassword, onAppPassword, o
           <DropdownMenuLabel className="truncate">{address}</DropdownMenuLabel>
           {!owner && (
             <>
+              <DropdownMenuItem onSelect={() => onConnectApp(address)}>
+                <Send />
+                {t('connectApp')}
+              </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => onResetPassword(address)}>
                 <KeyRound />
                 {t('resetPassword')}

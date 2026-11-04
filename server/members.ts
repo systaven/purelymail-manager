@@ -13,9 +13,12 @@ export interface MemberDefaults {
   requiresApproval: boolean;
   // Domains members may create mailboxes on.
   openDomains: string[];
+  // Members may set a password and use mail apps (IMAP/SMTP). Without it they
+  // only use webmail: their mailboxes keep a random password nobody knows.
+  mailApps: boolean;
 }
 
-const DEFAULTS: MemberDefaults = { maxMailboxes: 1, requiresApproval: true, openDomains: [] };
+const DEFAULTS: MemberDefaults = { maxMailboxes: 1, requiresApproval: true, openDomains: [], mailApps: true };
 
 export function getDefaults(): MemberDefaults {
   const row = getDb().prepare("SELECT value FROM settings WHERE key = 'member_defaults'").get() as { value: string } | undefined;
@@ -37,6 +40,7 @@ export interface UserRecord {
   max_mailboxes: number | null;
   requires_approval: number | null;
   allowed_domains: string | null;
+  mail_apps: number | null;
   created_at: string;
   last_seen_at: string | null;
 }
@@ -53,6 +57,7 @@ export function limitsFor(user: UserRecord) {
     maxMailboxes: user.max_mailboxes ?? defaults.maxMailboxes,
     requiresApproval: user.requires_approval === null ? defaults.requiresApproval : Boolean(user.requires_approval),
     allowedDomains: user.allowed_domains ? (JSON.parse(user.allowed_domains) as string[]) : defaults.openDomains,
+    mailApps: user.mail_apps === null || user.mail_apps === undefined ? defaults.mailApps : Boolean(user.mail_apps),
   };
 }
 
@@ -125,3 +130,16 @@ export async function handOverMailbox(mailbox: string, clerkUserId: string) {
     addManaged(mailbox, clerkUserId);
   });
 }
+
+// When a member loses mail-app access, their mailboxes get new random
+// passwords so mail apps already set up stop working. Webmail is unaffected
+// (it signs in with its own app password).
+export async function revokeMailApps(clerkUserIds: string[]) {
+  for (const id of clerkUserIds) {
+    for (const mailbox of ownedMailboxes(id)) {
+      await purelymail.modifyUser(mailbox, { newPassword: randomPassword() }).catch((error) => console.warn(`Could not reset ${mailbox}:`, error));
+    }
+  }
+}
+
+export const mailAppsAllowed = (clerkUserId: string) => limitsFor(getUser(clerkUserId)).mailApps;

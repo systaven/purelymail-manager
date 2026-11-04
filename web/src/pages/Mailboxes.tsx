@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { AppPasswordDialog } from '@/components/mailboxes/AppPasswordDialog';
 import { AddExistingDialog } from '@/components/mailboxes/AddExistingDialog';
 import { CreateMailboxDialog } from '@/components/mailboxes/CreateMailboxDialog';
+import { MailAppGuide } from '@/components/mailapps/MailAppGuide';
 import { MailboxList, MailboxListSkeleton } from '@/components/mailboxes/MailboxList';
 import { MailboxSheet } from '@/components/mailboxes/MailboxSheet';
 import { ResetPasswordDialog } from '@/components/mailboxes/ResetPasswordDialog';
@@ -40,6 +41,7 @@ export default function MailboxesPage() {
   const [selected, setSelected] = useState<string | null>(null);
   const [resetFor, setResetFor] = useState<string | null>(null);
   const [appFor, setAppFor] = useState<string | null>(null);
+  const [guideFor, setGuideFor] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [createKey, setCreateKey] = useState(0);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -227,6 +229,7 @@ export default function MailboxesPage() {
           onOpen={setSelected}
           onResetPassword={setResetFor}
           onAppPassword={setAppFor}
+          onConnectApp={setGuideFor}
           onDelete={remove.run}
           onRelease={release}
         />
@@ -237,12 +240,19 @@ export default function MailboxesPage() {
         onClose={() => setSelected(null)}
         onResetPassword={setResetFor}
         onAppPassword={setAppFor}
+        onConnectApp={setGuideFor}
         onDelete={remove.run}
         deleting={remove.pending}
         onRenamed={setSelected}
       />
       <AddExistingDialog key={addKey} open={adding} onOpenChange={setAdding} />
-      <CreateMailboxDialog key={createKey} open={creating} onOpenChange={setCreating} defaultDomain={activeDomain ?? undefined} />
+      <CreateMailboxDialog key={createKey} open={creating} onOpenChange={setCreating} defaultDomain={activeDomain ?? undefined} onConnect={setGuideFor} />
+      <MailAppGuide
+        address={guideFor}
+        open={Boolean(guideFor)}
+        onOpenChange={(open) => !open && setGuideFor(null)}
+        setPassword={(newPassword) => adminApi.updateMailbox(guideFor!, { newPassword })}
+      />
       <ResetPasswordDialog key={`reset-${resetFor}`} address={resetFor} onClose={() => setResetFor(null)} />
       <AppPasswordDialog key={`app-${appFor}`} address={appFor} onClose={() => setAppFor(null)} />
     </div>

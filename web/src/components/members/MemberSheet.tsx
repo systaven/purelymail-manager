@@ -105,6 +105,34 @@ function ActionRow({ icon, title, hint, action, tone }: { icon: ReactNode; title
   );
 }
 
+type MailAppsMode = 'default' | 'on' | 'off';
+
+// Mail apps: follow the default, or always allowed / not allowed.
+function MailAppsRow({ member, defaultValue, disabled, onChange }: { member: Member; defaultValue: boolean | undefined; disabled: boolean; onChange: (mode: MailAppsMode) => void }) {
+  const t = useT(membersMessages);
+  const mode: MailAppsMode = member.overrides.mailApps === null ? 'default' : member.overrides.mailApps ? 'on' : 'off';
+  return (
+    <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3 rounded-lg border p-3">
+      <div className="min-w-0 flex-1 basis-48">
+        <p className="text-sm font-medium">{t('mailApps')}</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">{t('mailAppsHint')}</p>
+      </div>
+      <Segmented
+        size="sm"
+        label={t('mailApps')}
+        className="flex w-full sm:inline-flex sm:w-auto"
+        value={mode}
+        onChange={(v) => !disabled && v !== mode && onChange(v)}
+        options={[
+          { value: 'default', label: t('defaultIs', { value: defaultValue === undefined ? '…' : t(defaultValue ? 'allowed' : 'notAllowed') }) },
+          { value: 'on', label: t('allowed') },
+          { value: 'off', label: t('notAllowed') },
+        ]}
+      />
+    </div>
+  );
+}
+
 // Wraps a disabled control so its reason still shows on hover.
 const WithReason = ({ reason, children }: { reason: string | null; children: ReactNode }) =>
   reason ? (
@@ -171,6 +199,22 @@ export function MemberSheet({ member, isSelf, onClose }: { member: Member | null
       destructive: !promote,
     });
     if (ok) setRole.mutate(promote ? 'admin' : 'guest');
+  };
+
+  const setMailApps = async (mode: MailAppsMode) => {
+    const value = mode === 'default' ? null : mode === 'on';
+    const after = value ?? d?.mailApps ?? true;
+    if (member.limits.mailApps && !after) {
+      const ok = await confirm({
+        title: t('mailAppsOffTitle', { member: label }),
+        description: t('mailAppsOffBody'),
+        confirmLabel: t('mailAppsOffConfirm'),
+        cancelLabel: tc('cancel'),
+        destructive: true,
+      });
+      if (!ok) return;
+    }
+    update.mutate({ mailApps: value });
   };
 
   const askDisable = async () => {
@@ -289,6 +333,7 @@ export function MemberSheet({ member, isSelf, onClose }: { member: Member | null
                 {t(member.limits.requiresApproval ? 'yes' : 'no')}
               </label>
             </LimitRow>
+            <MailAppsRow member={member} defaultValue={d?.mailApps} disabled={busy} onChange={setMailApps} />
             <LimitRow
               label={t('allowedDomains')}
               hint={t('allowedDomainsHint')}

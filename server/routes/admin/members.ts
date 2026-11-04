@@ -3,7 +3,7 @@ import { type AppEnv } from '../../auth';
 import { config } from '../../config';
 import { audit, getDb } from '../../db';
 import { ApiError, badRequest } from '../../errors';
-import { checkNewAddress, createOwnedMailbox, getDefaults, getUser, handOverMailbox, limitsFor, setDefaults, type UserRecord } from '../../members';
+import { checkNewAddress, createOwnedMailbox, getDefaults, getUser, handOverMailbox, limitsFor, revokeMailApps, setDefaults, type UserRecord } from '../../members';
 import { ownerOf } from '../../owners';
 import { purelymail } from '../../purelymail';
 import { bool, email, json, str } from '../../validate';
@@ -33,8 +33,15 @@ export const memberRoutes = new Hono<AppEnv>()
       maxMailboxes: optionalInt(body.maxMailboxes, 'maxMailboxes') ?? 0,
       requiresApproval: bool(body.requiresApproval, 'requiresApproval') ?? true,
       openDomains: await domainList(body.openDomains, 'openDomains'),
+      mailApps: bool(body.mailApps, 'mailApps') ?? getDefaults().mailApps,
     };
+    const before = getDefaults().mailApps;
     setDefaults(defaults);
+    if (before && !defaults.mailApps) {
+      // Members following the default lose access now.
+      const affected = (getDb().prepare("SELECT clerk_user_id FROM users WHERE mail_apps IS NULL AND role = 'guest'").all() as { clerk_user_id: string }[]).map((r) => r.clerk_user_id);
+      await revokeMailApps(affected);
+    }
     audit(c.var.session.actor, 'members.defaults', undefined, defaults);
     return c.json(defaults);
   })
@@ -63,7 +70,12 @@ export const memberRoutes = new Hono<AppEnv>()
         lastSeenAt: u.last_seen_at,
         mailboxes: counts.get(u.clerk_user_id) ?? 0,
         pendingRequests: pending.get(u.clerk_user_id) ?? 0,
-        overrides: { maxMailboxes: u.max_mailboxes, requiresApproval: u.requires_approval === null ? null : Boolean(u.requires_approval), allowedDomains: u.allowed_domains ? JSON.parse(u.allowed_domains) : null },
+        overrides: {
+          maxMailboxes: u.max_mailboxes,
+          requiresApproval: u.requires_approval === null ? null : Boolean(u.requires_approval),
+          allowedDomains: u.allowed_domains ? JSON.parse(u.allowed_domains) : null,
+          mailApps: u.mail_apps === null ? null : Boolean(u.mail_apps),
+        },
         limits: limitsFor(u),
       }))
     );
@@ -91,6 +103,11 @@ export const memberRoutes = new Hono<AppEnv>()
     if ('maxMailboxes' in body) set('max_mailboxes', optionalInt(body.maxMailboxes, 'maxMailboxes') ?? null);
     if ('requiresApproval' in body) set('requires_approval', body.requiresApproval === null ? null : bool(body.requiresApproval, 'requiresApproval') ? 1 : 0);
     if ('allowedDomains' in body) set('allowed_domains', body.allowedDomains === null ? null : JSON.stringify(await domainList(body.allowedDomains, 'allowedDomains')));
+    if ('mailApps' in body) {
+      const before = limitsFor(user).mailApps;
+      set('mail_apps', body.mailApps === null ? null : bool(body.mailApps, 'mailApps') ? 1 : 0);
+      if (before && !limitsFor(getUser(user.clerk_user_id)).mailApps) await revokeMailApps([user.clerk_user_id]);
+    }
 
     audit(c.var.session.actor, 'member.update', user.email ?? user.clerk_user_id, body);
     return c.json({ ok: true });

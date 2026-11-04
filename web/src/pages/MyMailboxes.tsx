@@ -1,11 +1,14 @@
 import { useState, type FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Clock, Download, Forward, KeyRound, Lock, Mailbox, MoreHorizontal, Plus, Server, Trash2 } from 'lucide-react';
+import { Clock, Download, Forward, Globe, Lock, Mailbox, MoreHorizontal, Plus, Send, Server, Trash2 } from 'lucide-react';
+import { Link } from 'react-router';
 import { PageHeader } from '@/components/PageHeader';
+import { SERVERS } from '@/components/mailapps/clients';
+import { MailAppGuide } from '@/components/mailapps/MailAppGuide';
 import { AddressText, DialogShell } from '@/components/mailboxes/shared';
 import { PasswordField } from '@/components/mailboxes/PasswordField';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { useConfirm } from '@/components/ui/confirm';
 import {
   DropdownMenu,
@@ -31,15 +34,15 @@ const LOCAL_RE = /^[a-z0-9](?:[a-z0-9._+-]{0,62}[a-z0-9])?$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD = 10;
 
-// PurelyMail's servers for mail apps.
-const SERVERS = [
-  { key: 'incoming', host: 'imap.purelymail.com', port: '993', security: 'SSL/TLS' },
-  { key: 'outgoing', host: 'smtp.purelymail.com', port: '465', security: 'SSL/TLS' },
+const SERVER_ROWS = [
+  { key: 'incoming', ...SERVERS.imap },
+  { key: 'outgoing', ...SERVERS.smtp },
 ] as const;
 
 // Adds a mailbox the member already has in PurelyMail, proven with its current
-// password (the server signs in to check). Optionally sets a new password.
-function ClaimDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+// password (the server signs in to check). Optionally sets a new password;
+// without mail-app access the server always gives it a random one.
+function ClaimDialog({ open, onOpenChange, mailApps }: { open: boolean; onOpenChange: (open: boolean) => void; mailApps: boolean }) {
   const t = useT(myMailboxesMessages);
   const tc = useT(commonMessages);
   const errorText = useErrorText();
@@ -55,10 +58,10 @@ function ClaimDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (ope
     const value = address.trim().toLowerCase();
     if (!EMAIL_RE.test(value)) return setError(t('invalidEmail'));
     if (!current) return setError(t('currentPasswordRequired'));
-    if (change && next.length < MIN_PASSWORD) return setError(t('passwordTooShort'));
+    if (mailApps && change && next.length < MIN_PASSWORD) return setError(t('passwordTooShort'));
     setError(null);
     claim.mutate(
-      { address: value, password: current, newPassword: change ? next : undefined },
+      { address: value, password: current, newPassword: mailApps && change ? next : undefined },
       {
         onSuccess: () => {
           toast.success(t('claimed', { address: value }));
@@ -95,49 +98,71 @@ function ClaimDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (ope
           <Label htmlFor="claim-current">{t('currentPassword')}</Label>
           <Input id="claim-current" type="password" autoComplete="off" value={current} onChange={(e) => setCurrent(e.target.value)} />
         </div>
-        <div className="flex items-center justify-between gap-4">
-          <label htmlFor="claim-change" className="min-w-0 cursor-pointer">
-            <span className="block text-sm font-medium">{t('claimChangePassword')}</span>
-            <span className="block text-xs text-muted-foreground">{change ? t('claimChangeHint') : t('claimKeepHint')}</span>
-          </label>
-          <Switch id="claim-change" checked={change} onCheckedChange={setChange} />
-        </div>
-        {change && <PasswordField id="claim-new" value={next} onChange={setNext} />}
+        {mailApps ? (
+          <>
+            <div className="flex items-center justify-between gap-4">
+              <label htmlFor="claim-change" className="min-w-0 cursor-pointer">
+                <span className="block text-sm font-medium">{t('claimChangePassword')}</span>
+                <span className="block text-xs text-muted-foreground">{change ? t('claimChangeHint') : t('claimKeepHint')}</span>
+              </label>
+              <Switch id="claim-change" checked={change} onCheckedChange={setChange} />
+            </div>
+            {change && <PasswordField id="claim-new" value={next} onChange={setNext} />}
+          </>
+        ) : (
+          <p className="flex gap-2 rounded-lg bg-muted/60 px-3 py-2.5 text-xs text-muted-foreground">
+            <Globe className="mt-px size-3.5 shrink-0" />
+            {t('claimRandom')}
+          </p>
+        )}
         {error && <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>}
       </form>
     </DialogShell>
   );
 }
 
-function CreateDialog({ account, open, onOpenChange }: { account: MyAccount; open: boolean; onOpenChange: (open: boolean) => void }) {
+// New mailboxes get a random password on the server; mail apps get one later
+// through the setup guide (onConnect).
+function CreateDialog({
+  account,
+  open,
+  onOpenChange,
+  onConnect,
+}: {
+  account: MyAccount;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onConnect: (address: string) => void;
+}) {
   const t = useT(myMailboxesMessages);
   const tc = useT(commonMessages);
   const errorText = useErrorText();
-  const { requiresApproval, allowedDomains } = account.limits;
+  const { requiresApproval, allowedDomains, mailApps } = account.limits;
   const [local, setLocal] = useState('');
   const [domain, setDomain] = useState(allowedDomains[0] ?? '');
-  const [password, setPassword] = useState('');
   const [note, setNote] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const create = useAction(meApi.create, {
-    success: (r) => (r.status === 'requested' ? t('requested') : t('created', { address: `${local.trim().toLowerCase()}@${domain}` })),
-    invalidate: [meKeys.account],
-    errorToast: false,
-  });
+  const create = useAction(meApi.create, { invalidate: [meKeys.account], errorToast: false });
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
     const localPart = local.trim().toLowerCase();
     if (!LOCAL_RE.test(localPart)) return setError(t('invalidAddress'));
-    if (!requiresApproval && password.length < MIN_PASSWORD) return setError(t('passwordTooShort'));
     setError(null);
+    const address = `${localPart}@${domain}`;
     create.mutate(
-      requiresApproval ? { localPart, domain, note: note.trim() || undefined } : { localPart, domain, password },
+      { localPart, domain, note: requiresApproval ? note.trim() || undefined : undefined },
       {
-        onSuccess: () => {
+        onSuccess: (result) => {
+          if (result.status === 'requested') toast.success(t('requested'));
+          else
+            toast.success(t('created', { address }), {
+              description: mailApps ? undefined : t('createHintWebmail'),
+              duration: mailApps ? 12000 : undefined,
+              action: mailApps ? { label: t('connectApp'), onClick: () => onConnect(address) } : undefined,
+            });
           onOpenChange(false);
           setLocal('');
-          setPassword('');
           setNote('');
         },
         onError: (err) => setError(errorText(err)),
@@ -197,57 +222,12 @@ function CreateDialog({ account, open, onOpenChange }: { account: MyAccount; ope
             <Input id="note" value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('notePlaceholder')} maxLength={300} />
           </div>
         ) : (
-          <div className="space-y-2">
-            <Label htmlFor="password">{t('password')}</Label>
-            <PasswordField id="password" value={password} onChange={setPassword} />
-          </div>
+          <p className="flex gap-2 rounded-lg bg-muted/60 px-3 py-2.5 text-xs text-muted-foreground">
+            <Globe className="mt-px size-3.5 shrink-0" />
+            {mailApps ? t('createHint') : t('createHintWebmail')}
+          </p>
         )}
         {error && <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>}
-      </form>
-    </DialogShell>
-  );
-}
-
-function PasswordDialog({ address, onClose }: { address: string | null; onClose: () => void }) {
-  const t = useT(myMailboxesMessages);
-  const tc = useT(commonMessages);
-  const errorText = useErrorText();
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const save = useAction((vars: { address: string; password: string }) => meApi.setPassword(vars.address, vars.password), {
-    success: t('passwordChanged'),
-    errorToast: false,
-  });
-  const close = () => {
-    setPassword('');
-    setError(null);
-    onClose();
-  };
-  const submit = (e: FormEvent) => {
-    e.preventDefault();
-    if (password.length < MIN_PASSWORD) return setError(t('passwordTooShort'));
-    save.mutate({ address: address!, password }, { onSuccess: close, onError: (err) => setError(errorText(err)) });
-  };
-  return (
-    <DialogShell
-      open={Boolean(address)}
-      onOpenChange={(open) => !open && close()}
-      title={t('changePassword')}
-      description={address ?? undefined}
-      footer={
-        <>
-          <Button variant="outline" onClick={close}>
-            {tc('cancel')}
-          </Button>
-          <Button type="submit" form="change-password" disabled={save.isPending}>
-            {tc('save')}
-          </Button>
-        </>
-      }
-    >
-      <form id="change-password" onSubmit={submit} className="space-y-2">
-        <Label htmlFor="new-password">{t('newPassword')}</Label>
-        <PasswordField id="new-password" value={password} onChange={setPassword} error={error} autoFocus />
       </form>
     </DialogShell>
   );
@@ -316,6 +296,24 @@ function ForwardingDialog({ address, onClose }: { address: string | null; onClos
   );
 }
 
+function MailAppsOffNote() {
+  const t = useT(myMailboxesMessages);
+  return (
+    <div className="flex flex-col gap-4 rounded-xl border bg-card p-5 shadow-xs sm:flex-row sm:items-center">
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+        <Globe className="size-5" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <h2 className="text-sm font-semibold">{t('mailAppsOffTitle')}</h2>
+        <p className="mt-0.5 text-sm text-muted-foreground">{t('mailAppsOffBody')}</p>
+      </div>
+      <Link to="/mail" className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'self-start sm:self-auto')}>
+        {t('openWebmail')}
+      </Link>
+    </div>
+  );
+}
+
 function ConnectCard({ address }: { address: string }) {
   const t = useT(myMailboxesMessages);
   return (
@@ -326,12 +324,12 @@ function ConnectCard({ address }: { address: string }) {
       </div>
       <p className="mt-1 text-xs text-muted-foreground">{t('connectHint')}</p>
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        {SERVERS.map((s) => (
+        {SERVER_ROWS.map((s) => (
           <dl key={s.key} className="space-y-1.5 rounded-lg bg-muted/60 p-3 text-sm">
             <dt className="mb-2 text-xs font-medium text-muted-foreground">{t(s.key)}</dt>
             {[
               [t('server'), s.host],
-              [t('port'), s.port],
+              [t('port'), String(s.port)],
               [t('security'), s.security],
               [t('username'), address],
             ].map(([label, value]) => (
@@ -363,7 +361,7 @@ export default function MyMailboxesPage() {
     setClaimKey((k) => k + 1);
     setClaiming(true);
   };
-  const [passwordFor, setPasswordFor] = useState<string | null>(null);
+  const [guideFor, setGuideFor] = useState<string | null>(null);
   const [forwardingFor, setForwardingFor] = useState<string | null>(null);
 
   const cancel = useAction(meApi.cancelRequest, { success: t('requestCancelled'), invalidate: [meKeys.account] });
@@ -373,6 +371,7 @@ export default function MyMailboxesPage() {
   const used = data ? data.mailboxes.length + data.requests.length : 0;
   const full = data ? used >= data.limits.maxMailboxes : false;
   const noDomains = data ? data.limits.allowedDomains.length === 0 : false;
+  const mailApps = data?.limits.mailApps ?? false;
 
   const askDelete = async (address: string) => {
     const ok = await confirm({
@@ -455,9 +454,11 @@ export default function MyMailboxesPage() {
                     </span>
                   </div>
                   <div className="hidden gap-1 sm:flex">
-                    <Button variant="ghost" size="sm" onClick={() => setPasswordFor(address)}>
-                      <KeyRound /> {t('changePassword')}
-                    </Button>
+                    {mailApps && (
+                      <Button variant="ghost" size="sm" onClick={() => setGuideFor(address)}>
+                        <Send /> {t('connectApp')}
+                      </Button>
+                    )}
                     <Button variant="ghost" size="sm" onClick={() => setForwardingFor(address)}>
                       <Forward /> {t('forwarding')}
                     </Button>
@@ -469,9 +470,11 @@ export default function MyMailboxesPage() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onSelect={() => setPasswordFor(address)}>
-                        <KeyRound /> {t('changePassword')}
-                      </DropdownMenuItem>
+                      {mailApps && (
+                        <DropdownMenuItem onSelect={() => setGuideFor(address)}>
+                          <Send /> {t('connectApp')}
+                        </DropdownMenuItem>
+                      )}
                       <DropdownMenuItem onSelect={() => setForwardingFor(address)}>
                         <Forward /> {t('forwarding')}
                       </DropdownMenuItem>
@@ -501,14 +504,19 @@ export default function MyMailboxesPage() {
             </ul>
           )}
 
-          {data.mailboxes.length > 0 && <ConnectCard address={data.mailboxes[0]} />}
+          {data.mailboxes.length > 0 && (mailApps ? <ConnectCard address={data.mailboxes[0]} /> : <MailAppsOffNote />)}
 
-          <ClaimDialog key={claimKey} open={claiming} onOpenChange={setClaiming} />
-          <CreateDialog key={data.limits.allowedDomains.join()} account={data} open={creating} onOpenChange={setCreating} />
+          <ClaimDialog key={claimKey} open={claiming} onOpenChange={setClaiming} mailApps={mailApps} />
+          <CreateDialog key={data.limits.allowedDomains.join()} account={data} open={creating} onOpenChange={setCreating} onConnect={setGuideFor} />
         </div>
       )}
 
-      <PasswordDialog address={passwordFor} onClose={() => setPasswordFor(null)} />
+      <MailAppGuide
+        address={guideFor}
+        open={Boolean(guideFor) && mailApps}
+        onOpenChange={(open) => !open && setGuideFor(null)}
+        setPassword={(password) => meApi.setPassword(guideFor!, password)}
+      />
       <ForwardingDialog key={forwardingFor ?? ''} address={forwardingFor} onClose={() => setForwardingFor(null)} />
     </div>
   );

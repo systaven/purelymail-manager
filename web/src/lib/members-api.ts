@@ -6,12 +6,15 @@ export interface MemberDefaults {
   maxMailboxes: number;
   requiresApproval: boolean;
   openDomains: string[];
+  // Members may set passwords and use mail apps (IMAP/SMTP).
+  mailApps: boolean;
 }
 
 export interface MemberLimits {
   maxMailboxes: number;
   requiresApproval: boolean;
   allowedDomains: string[];
+  mailApps: boolean;
 }
 
 export interface Member {
@@ -26,7 +29,7 @@ export interface Member {
   mailboxes: number;
   pendingRequests: number;
   // null = uses the default.
-  overrides: { maxMailboxes: number | null; requiresApproval: boolean | null; allowedDomains: string[] | null };
+  overrides: { maxMailboxes: number | null; requiresApproval: boolean | null; allowedDomains: string[] | null; mailApps: boolean | null };
   limits: MemberLimits;
 }
 
@@ -36,6 +39,8 @@ export type MemberPatch = Partial<{
   maxMailboxes: number | null;
   requiresApproval: boolean | null;
   allowedDomains: string[] | null;
+  // false resets the member's mailbox passwords on the server.
+  mailApps: boolean | null;
 }>;
 
 export type RequestStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';

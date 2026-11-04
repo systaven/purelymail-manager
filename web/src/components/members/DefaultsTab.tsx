@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useConfirm } from '@/components/ui/confirm';
 import { Card } from '@/components/ui/card';
 import { ErrorBanner } from '@/components/ui/feedback';
 import { Input } from '@/components/ui/input';
@@ -33,6 +34,7 @@ function DefaultsForm({ initial, domains }: { initial: MemberDefaults; domains: 
   const tc = useT(commonMessages);
   const [draft, setDraft] = useState(initial);
   const [quota, setQuota] = useState(String(initial.maxMailboxes));
+  const confirm = useConfirm();
   const members = useQuery({ queryKey: memberKeys.members, queryFn: membersApi.members });
 
   const n = Number(quota);
@@ -41,6 +43,7 @@ function DefaultsForm({ initial, domains }: { initial: MemberDefaults; domains: 
   const dirty =
     n !== initial.maxMailboxes ||
     draft.requiresApproval !== initial.requiresApproval ||
+    draft.mailApps !== initial.mailApps ||
     [...draft.openDomains].sort().join() !== [...initial.openDomains].sort().join();
 
   const save = useAction(membersApi.saveDefaults, { success: t('defaultsSaved'), invalidate: [memberKeys.defaults, memberKeys.members] });
@@ -50,12 +53,30 @@ function DefaultsForm({ initial, domains }: { initial: MemberDefaults; domains: 
   };
 
   const followers = members.data?.filter((m) => Object.values(m.overrides).every((v) => v === null)).length;
+  // Turning mail apps off resets the passwords of members who follow the default.
+  const revoking = initial.mailApps && !draft.mailApps;
+  const affected = members.data?.filter((m) => m.role === 'guest' && m.overrides.mailApps === null).length ?? 0;
+
+  const submit = async () => {
+    if (!validQuota || !dirty) return;
+    if (revoking) {
+      const ok = await confirm({
+        title: t('defMailAppsOffTitle'),
+        description: t('defMailAppsOffBody'),
+        confirmLabel: t('mailAppsOffConfirm'),
+        cancelLabel: tc('cancel'),
+        destructive: true,
+      });
+      if (!ok) return;
+    }
+    save.mutate(next);
+  };
 
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        if (validQuota && dirty) save.mutate(next);
+        void submit();
       }}
     >
       <Card className="divide-y">
@@ -81,6 +102,16 @@ function DefaultsForm({ initial, domains }: { initial: MemberDefaults; domains: 
         </Field>
         <Field id="def-approval" label={t('defApproval')} hint={t('defApprovalHint')}>
           <Switch id="def-approval" checked={draft.requiresApproval} onCheckedChange={(requiresApproval) => setDraft({ ...draft, requiresApproval })} />
+        </Field>
+        <Field id="def-mail-apps" label={t('defMailApps')} hint={t('defMailAppsHint')}>
+          <div className="space-y-2">
+            <Switch id="def-mail-apps" checked={draft.mailApps} onCheckedChange={(mailApps) => setDraft({ ...draft, mailApps })} />
+            {revoking && (
+              <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                <AlertTriangle className="mt-px size-3.5 shrink-0 text-warning" /> {t('defMailAppsOffWarn', { n: affected })}
+              </p>
+            )}
+          </div>
         </Field>
         <Field label={t('openDomains')} hint={t('openDomainsHint')}>
           <div className="space-y-2">

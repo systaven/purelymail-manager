@@ -93,6 +93,11 @@ const MIGRATIONS: string[] = [
     UNION SELECT mailbox, 'migration' FROM mailbox_credentials
     UNION SELECT target, 'migration' FROM audit_log WHERE action IN ('mailbox.create', 'mailbox.update', 'member.assign') AND target LIKE '%@%';
   `,
+  // Whether a member may use mail apps (IMAP/SMTP) with their mailboxes;
+  // NULL follows the default in member_defaults.
+  `
+  ALTER TABLE users ADD COLUMN mail_apps INTEGER;
+  `,
 ];
 
 // Node's built-in SQLite: no native module to compile, so the image builds

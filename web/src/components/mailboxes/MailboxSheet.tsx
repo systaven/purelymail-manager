@@ -1,7 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { KeyRound, Loader2, Lock, RectangleEllipsis, Trash2 } from 'lucide-react';
+import { ChevronRight, KeyRound, Loader2, Lock, RectangleEllipsis, Send, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useConfirm } from '@/components/ui/confirm';
 import { CopyButton, ErrorBanner } from '@/components/ui/feedback';
@@ -24,6 +24,7 @@ type Detail = Extract<MailboxDetail, { private: false }>;
 export interface MailboxSheetActions {
   onResetPassword: (address: string) => void;
   onAppPassword: (address: string) => void;
+  onConnectApp: (address: string) => void;
   onDelete: (address: string) => void;
   deleting: boolean;
   onRenamed: (address: string) => void;
@@ -122,7 +123,7 @@ function SettingRow({ label, hint, children }: { label: string; hint: string; ch
   );
 }
 
-function EditableDetail({ detail, onResetPassword, onAppPassword, onRenamed }: { detail: Detail } & MailboxSheetActions) {
+function EditableDetail({ detail, onResetPassword, onAppPassword, onConnectApp, onRenamed }: { detail: Detail } & MailboxSheetActions) {
   const t = useT(mailboxesMessages);
   const { address } = detail;
   const update = useAction((changes: Settings) => adminApi.updateMailbox(address, changes), {
@@ -142,6 +143,21 @@ function EditableDetail({ detail, onResetPassword, onAppPassword, onRenamed }: {
 
   return (
     <>
+      <button
+        type="button"
+        onClick={() => onConnectApp(address)}
+        className="group flex w-full items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 p-4 text-left transition-colors hover:bg-primary/10 focus-visible:bg-primary/10"
+      >
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
+          <Send className="size-4" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-semibold">{t('connectApp')}</span>
+          <span className="mt-0.5 block text-xs text-muted-foreground">{t('connectAppHint')}</span>
+        </span>
+        <ChevronRight className="size-4 shrink-0 text-primary transition-transform group-hover:translate-x-0.5" />
+      </button>
+
       <Section title={t('settings')}>
         <div className="divide-y rounded-xl border">
           {toggles.map(({ key, label, hint, current }) => (
