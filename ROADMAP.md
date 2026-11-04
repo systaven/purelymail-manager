@@ -1,0 +1,67 @@
+# Roadmap
+
+A self-hosted web app for [PurelyMail](https://purelymail.com): a modern webmail, calendar and contacts for everyone with a mailbox, plus account administration. PurelyMail stays the mail backend (IMAP, SMTP, CalDAV/CardDAV and its management API); this project is only the front end and the small server behind it.
+
+## Goals
+
+- **Feels like a modern mail app.** Fast, keyboard-first, good on phones, light and dark, in English, 简体中文, 繁體中文 and 日本語. The bar is Gmail / Fastmail / Superhuman-class interaction, not "admin panel with a mail tab".
+- **Small.** One Docker container, idle under 64 MB RAM and ~0% CPU; comfortably inside 512 MB / 0.2 CPU with many users.
+- **Private.** A member's mailbox is theirs alone: administrators can delete it, not read it.
+- **Independent.** Written from scratch; no code from the old panel. Interaction ideas come from open-source clients such as [Zero](https://github.com/Mail-0/Zero) (MIT) and [next-email-client](https://github.com/leerob/next-email-client) (MIT).
+
+Running as a long-lived container (instead of serverless) is what makes the mail features below possible: persistent IMAP connections, push via IDLE, and server-side timers for undo send, scheduled send and snooze.
+
+## Milestones
+
+### M1 — Foundation ✅
+- [x] Hono server, SQLite (WAL), migrations, audit log
+- [x] Clerk sign-in; administrators from `ADMIN_EMAILS` (verified addresses only)
+- [x] Typed PurelyMail API client matching the official spec
+- [x] Strict CSP, CSRF protection, security headers
+- [x] Design system (Tailwind v4 tokens, light/dark), app shell with collapsible sidebar, mobile drawer
+- [x] ⌘K command palette, `g`-then-letter navigation
+- [x] Four languages, theme switch, brand name and logo from environment variables
+- [x] Docker image (amd64/arm64) built by GitHub Actions; ~30 MB RAM idle
+
+### M2 — Administration
+- [ ] Domains: list with DNS health, add with ownership-record walkthrough (MX, SPF, DKIM, DMARC copy buttons), settings, recheck DNS, delete
+- [ ] Users (mailboxes): search, create, rename, reset password, search indexing, 2FA requirement, recovery methods, app passwords, delete
+- [ ] Routing: aliases, forwards, prefix rules, catch-alls; visual "which rule wins" preview
+- [ ] Members (Clerk users): quotas, approval, allowed domains, disable, promote; mailbox requests and approvals
+- [ ] Settings: defaults, open domains, branding override from the UI (stored in SQLite)
+- [ ] Audit log viewer
+
+### M3 — Mail
+- [ ] IMAP connection pool (idle timeout, per-user cap) and IDLE push to the browser over Server-Sent Events
+- [ ] Unified inbox across a member's mailboxes; folder tree with unread counts
+- [ ] Conversation (thread) view with collapsible messages; list density options; reading pane right / bottom / off
+- [ ] Keyboard shortcuts for everything (j/k, e, #, r, a, f, s, x, /, ?), hover and swipe actions
+- [ ] Search with operators (`from:`, `to:`, `subject:`, `has:attachment`, `before:`, `after:`)
+- [ ] Composer: rich text, signatures per mailbox, drag-and-drop attachments, inline images, address autocomplete, drafts saved to the IMAP Drafts folder
+- [ ] Undo send, scheduled send, snooze (server-side timers)
+- [ ] Remote images blocked by default, tracking-pixel removal, suspicious-link warnings, sandboxed HTML rendering
+- [ ] Desktop notifications; private app passwords per member (encrypted, never visible to admins)
+
+### M4 — Calendar and contacts
+- [ ] CalDAV: day / week / month / agenda views, drag to create and move, recurring events, invitations shown in mail
+- [ ] CardDAV: contacts with search, groups, quick compose
+- [ ] Tolerant DAV client (PurelyMail omits `supported-calendar-component-set`; see purelymail-issues#421)
+
+### M5 — Members
+- [ ] "My mailboxes": request or create mailboxes within quota, change password, forwarding, delete
+- [ ] Account page (Clerk profile, sessions, 2FA)
+
+### M6 — Polish
+- [ ] Installable PWA, offline cache of recent mail
+- [ ] Code-split Clerk and pages (smaller first load)
+- [ ] Import tool for data from the old panel (Supabase) into SQLite
+- [ ] Backup / restore docs, metrics endpoint
+
+## Resource budget
+
+| | Target |
+|---|---|
+| Idle memory | < 64 MB (measured ~30 MB at M1) |
+| Memory with 20 active webmail users | < 256 MB |
+| Idle CPU | ~0 |
+| Image | linux/amd64, linux/arm64 |

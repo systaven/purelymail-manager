@@ -1,0 +1,13 @@
+services:
+  purelymail-manager:
+    image: ghcr.io/systaven/purelymail-manager:latest
+    # build: .   # or build it yourself
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/data
+    # Generous caps for a single small instance.
+    mem_limit: 256m
+    cpus: 0.2
