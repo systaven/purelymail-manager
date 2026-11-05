@@ -67,7 +67,7 @@ function MailboxRow({ mailbox, active, onOpen, onResetPassword, onAppPassword, o
         onClick={() => onOpen(address)}
         className="flex min-w-0 flex-1 items-center gap-3 py-2.5 pl-3 text-left outline-none focus-visible:bg-accent/60 sm:pl-4"
       >
-        <Avatar name={owner?.name || address} />
+        <Avatar name={owner?.name || address} src={owner?.imageUrl} />
         <span className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
           <AddressText address={address} className="text-sm" />
           {owner && <MemberBadge owner={owner} className="self-start sm:self-auto" />}

@@ -110,7 +110,7 @@ export function MembersTab() {
                   m.disabled && 'opacity-70'
                 )}
               >
-                <Avatar name={memberLabel(m)} className="size-9" />
+                <Avatar name={memberLabel(m)} src={m.imageUrl} className="size-9" />
                 <span className="min-w-0 flex-1">
                   <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
                     <span className="truncate font-medium">{memberLabel(m)}</span>

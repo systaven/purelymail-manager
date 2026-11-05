@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { type AppEnv } from '../../auth';
+import { type AppEnv, clerkImages } from '../../auth';
 import { config } from '../../config';
 import { audit, getDb } from '../../db';
 import { ApiError, badRequest } from '../../errors';
@@ -45,7 +45,7 @@ export const memberRoutes = new Hono<AppEnv>()
     audit(c.var.session.actor, 'members.defaults', undefined, defaults);
     return c.json(defaults);
   })
-  .get('/', (c) => {
+  .get('/', async (c) => {
     const db = getDb();
     const users = db.prepare('SELECT * FROM users ORDER BY created_at DESC').all() as unknown as UserRecord[];
     const counts = new Map(
@@ -57,11 +57,13 @@ export const memberRoutes = new Hono<AppEnv>()
         n: number;
       }[]).map((r) => [r.clerk_user_id, r.n])
     );
+    const photos = await clerkImages(users.map((u) => u.clerk_user_id));
     return c.json(
       users.map((u) => ({
         clerkUserId: u.clerk_user_id,
         email: u.email,
         name: u.name,
+        imageUrl: photos.get(u.clerk_user_id) ?? null,
         role: envAdmin(u) ? 'admin' : u.role,
         // Admin because of ADMIN_EMAILS: can't be demoted here.
         envAdmin: envAdmin(u),
@@ -124,7 +126,7 @@ export const memberRoutes = new Hono<AppEnv>()
   });
 
 export const requestRoutes = new Hono<AppEnv>()
-  .get('/', (c) => {
+  .get('/', async (c) => {
     const status = c.req.query('status') || 'pending';
     const rows = getDb()
       .prepare(
@@ -133,8 +135,9 @@ export const requestRoutes = new Hono<AppEnv>()
          FROM mailbox_requests r JOIN users u ON u.clerk_user_id = r.clerk_user_id
          WHERE r.status = ? ORDER BY r.id DESC LIMIT 200`
       )
-      .all(status);
-    return c.json(rows);
+      .all(status) as { clerkUserId: string }[];
+    const photos = await clerkImages(rows.map((r) => r.clerkUserId));
+    return c.json(rows.map((r) => ({ ...r, imageUrl: photos.get(r.clerkUserId) ?? null })));
   })
   .post('/:id', async (c) => {
     const db = getDb();

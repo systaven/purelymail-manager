@@ -24,6 +24,7 @@ export interface Owner {
   clerkUserId: string;
   email: string | null;
   name: string | null;
+  imageUrl?: string | null; // Clerk profile photo (admin lists)
 }
 
 export interface MailboxSummary {

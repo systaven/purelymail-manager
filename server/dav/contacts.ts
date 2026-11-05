@@ -1,7 +1,7 @@
 import ICAL from 'ical.js';
 import { randomUUID } from 'node:crypto';
 import { ApiError } from '../errors';
-import { type DavContext, type DavResource, resourceTypes, text } from './client';
+import { type DavContext, type DavResource, readCollection, resourceTypes, text } from './client';
 
 // Address books over CardDAV. We read and write the common vCard fields and
 // keep every other property (addresses, photos, custom fields) untouched.
@@ -42,24 +42,8 @@ export async function listAddressBooks({ dav, homes }: DavContext): Promise<Addr
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-async function fetchAll({ dav }: DavContext, book: string): Promise<DavResource[]> {
-  try {
-    return await dav.report(book, '<card:addressbook-query NS><d:prop><d:getetag/><card:address-data/></d:prop></card:addressbook-query>');
-  } catch (error) {
-    if (!(error instanceof ApiError && error.code === 'dav_failed')) throw error;
-  }
-  // Fallback: list the cards, then fetch them in batches.
-  const cards = (await dav.propfind(book, 1, '<d:getetag/><d:resourcetype/>')).filter((r) => r.href !== book && !resourceTypes(r.props).includes('collection'));
-  const out: DavResource[] = [];
-  for (let i = 0; i < cards.length; i += 200) {
-    const hrefs = cards
-      .slice(i, i + 200)
-      .map((c) => `<d:href>${c.href.split('/').map(encodeURIComponent).join('/')}</d:href>`)
-      .join('');
-    out.push(...(await dav.report(book, `<card:addressbook-multiget NS><d:prop><d:getetag/><card:address-data/></d:prop>${hrefs}</card:addressbook-multiget>`)));
-  }
-  return out;
-}
+// Every card in the address book (PROPFIND + multiget, cached by ETag).
+const fetchAll = ({ dav, address }: DavContext, book: string): Promise<DavResource[]> => readCollection(dav, address, book, 'addressbook');
 
 const LABELS = ['home', 'work', 'cell', 'mobile', 'main', 'fax', 'other', 'iphone', 'pager'];
 

@@ -1,7 +1,7 @@
 import ICAL from 'ical.js';
 import { randomUUID } from 'node:crypto';
 import { ApiError, badRequest } from '../errors';
-import { type DavContext, type DavResource, resourceTypes, text } from './client';
+import { type DavContext, type DavResource, readCollection, resourceTypes, text } from './client';
 import { isZone, vtimezone, wallClock } from './tz';
 
 // Calendars over CalDAV. Events are expanded on the server (recurrences,
@@ -60,7 +60,8 @@ export async function listCalendars({ dav, homes }: DavContext): Promise<Calenda
     })
     .map((r) => {
       const privileges = r.props['current-user-privilege-set'];
-      const canWrite = !privileges || JSON.stringify(privileges).match(/"(write|write-content|all)"/) !== null;
+      // Read-only only when the server lists privileges and none of them writes.
+      const canWrite = !privileges || /"(write|write-content|write-properties|bind|all)"/.test(JSON.stringify(privileges));
       return {
         href: r.href,
         name: text(r.props.displayname) || r.href.split('/').filter(Boolean).pop() || 'Calendar',
@@ -91,19 +92,9 @@ export async function updateCalendar({ dav }: DavContext, href: string, name: st
 
 // --- Reading ---------------------------------------------------------------------
 
-const icalUtc = (ms: number) => new Date(ms).toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
-
-async function fetchRange({ dav }: DavContext, calendar: string, from: number, to: number): Promise<DavResource[]> {
-  const filter = `<c:filter><c:comp-filter name="VCALENDAR"><c:comp-filter name="VEVENT"><c:time-range start="${icalUtc(from)}" end="${icalUtc(to)}"/></c:comp-filter></c:comp-filter></c:filter>`;
-  const query = (f: string) => dav.report(calendar, `<c:calendar-query NS><d:prop><d:getetag/><c:calendar-data/></d:prop>${f}</c:calendar-query>`);
-  try {
-    return await query(filter);
-  } catch (error) {
-    // Some servers reject time ranges; read everything and filter here instead.
-    if (error instanceof ApiError && error.code === 'dav_failed') return query('<c:filter><c:comp-filter name="VCALENDAR"/></c:filter>');
-    throw error;
-  }
-}
+// Every event in the calendar; listEvents keeps the ones in range. (PurelyMail's
+// time-range REPORT can miss events saved moments ago, so it isn't used.)
+const fetchRange = ({ dav, address }: DavContext, calendar: string): Promise<DavResource[]> => readCollection(dav, address, calendar, 'calendar');
 
 // Makes sure every TZID used in `ics` is known to ical.js, defining IANA zones
 // that the file names without a VTIMEZONE.
@@ -235,7 +226,7 @@ function expand(resource: DavResource, calendar: string, from: number, to: numbe
 export async function listEvents(ctx: DavContext, calendars: string[], fromMs: number, toMs: number): Promise<Occurrence[]> {
   if (!(toMs > fromMs) || toMs - fromMs > MAX_RANGE_DAYS * 86400_000) throw badRequest('Invalid range', 'invalid_field', { name: 'range' });
   const out: Occurrence[] = [];
-  const results = await Promise.all(calendars.map((href) => fetchRange(ctx, href, fromMs, toMs).then((items) => ({ href, items }))));
+  const results = await Promise.all(calendars.map((href) => fetchRange(ctx, href).then((items) => ({ href, items }))));
   for (const { href, items } of results) for (const r of items) if (r.props['calendar-data']) expand(r, href, fromMs, toMs, out);
   return out.sort((a, b) => a.start.localeCompare(b.start) || a.title.localeCompare(b.title));
 }

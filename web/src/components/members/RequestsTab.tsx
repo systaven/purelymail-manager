@@ -64,7 +64,7 @@ function RequestCard({ request }: { request: MailboxRequest }) {
             <span className="min-w-0 truncate font-medium">{mailbox}</span>
           </div>
           <div className="mt-2.5 flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
-            <Avatar name={member} className="size-5 text-[9px]" />
+            <Avatar name={member} src={request.imageUrl} className="size-5 text-[9px]" />
             <span className="truncate">
               <span className="text-foreground">{request.name || request.email}</span>
               {request.name && request.email && <span className="hidden sm:inline"> · {request.email}</span>}

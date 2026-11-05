@@ -21,6 +21,7 @@ export interface Member {
   clerkUserId: string;
   email: string | null;
   name: string | null;
+  imageUrl: string | null; // Clerk profile photo
   role: 'admin' | 'guest';
   envAdmin: boolean;
   disabled: boolean;
@@ -56,6 +57,7 @@ export interface MailboxRequest {
   clerkUserId: string;
   email: string | null;
   name: string | null;
+  imageUrl: string | null; // Clerk profile photo
 }
 
 export const memberKeys = {

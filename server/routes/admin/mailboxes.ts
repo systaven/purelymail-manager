@@ -1,6 +1,6 @@
 import { randomPassword } from '../../members';
 import { Hono } from 'hono';
-import { type AppEnv } from '../../auth';
+import { type AppEnv, clerkImages } from '../../auth';
 import { audit, getDb } from '../../db';
 import { ApiError, badRequest } from '../../errors';
 import { addManaged, assertManaged, isManaged, managedMailboxes, removeManaged, renameManaged } from '../../managed';
@@ -17,7 +17,13 @@ export const mailboxRoutes = new Hono<AppEnv>()
   })
   .get('/', async (c) => {
     const [names, owners] = [await managedMailboxes(), ownersByMailbox()];
-    return c.json(names.map((address) => ({ address, owner: owners.get(address) ?? null })));
+    const photos = await clerkImages([...owners.values()].map((o) => o.clerkUserId));
+    return c.json(
+      names.map((address) => {
+        const owner = owners.get(address);
+        return { address, owner: owner ? { ...owner, imageUrl: photos.get(owner.clerkUserId) ?? null } : null };
+      })
+    );
   })
   // Whether an address is free, already in the panel, or only in PurelyMail
   // (the new-mailbox dialog then offers to add it instead).

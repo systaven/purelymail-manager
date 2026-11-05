@@ -120,3 +120,29 @@ export function requireAuth(role: Role = 'guest'): MiddlewareHandler<AppEnv> {
     await next();
   };
 }
+
+// Profile photos of other users, for admin lists. Asked from Clerk's backend
+// API (the browser can only see its own user) and kept briefly in memory,
+// never stored.
+const IMAGE_TTL_MS = 10 * 60_000;
+const images = new Map<string, { url: string | null; at: number }>();
+
+export async function clerkImages(ids: string[]): Promise<Map<string, string | null>> {
+  const now = Date.now();
+  const wanted = [...new Set(ids)].filter((id) => {
+    const hit = images.get(id);
+    return !hit || now - hit.at > IMAGE_TTL_MS;
+  });
+  for (let i = 0; i < wanted.length; i += 100) {
+    const batch = wanted.slice(i, i + 100);
+    try {
+      const { data } = await clerk.users.getUserList({ userId: batch, limit: 100 });
+      const found = new Map(data.map((u) => [u.id, u.imageUrl || null]));
+      for (const id of batch) images.set(id, { url: found.get(id) ?? null, at: now });
+    } catch (error) {
+      console.warn('Could not load profile photos from Clerk:', error);
+      break; // initials until next time
+    }
+  }
+  return new Map(ids.map((id) => [id, images.get(id)?.url ?? null]));
+}

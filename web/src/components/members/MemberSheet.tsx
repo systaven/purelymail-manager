@@ -238,7 +238,7 @@ export function MemberSheet({ member, isSelf, onClose }: { member: Member | null
           {/* Summary */}
           <div className="space-y-4">
             <div className="flex items-center gap-3">
-              <Avatar name={label} className="size-12 text-sm" />
+              <Avatar name={label} src={member.imageUrl} className="size-12 text-sm" />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="truncate font-semibold">{member.name || member.email}</span>
