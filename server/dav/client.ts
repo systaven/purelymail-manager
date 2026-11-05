@@ -67,24 +67,44 @@ export class Dav {
     return url;
   }
 
+  // Every request and its status, when diagnosing (see routes/dav.ts /diagnose).
+  trace: string[] | null = null;
+
   async request(method: string, path: string, init: { body?: string; headers?: Record<string, string> } = {}) {
-    const res = await fetch(this.url(path), {
-      method,
-      body: init.body,
-      redirect: 'follow',
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-      headers: {
-        Authorization: `Basic ${Buffer.from(`${this.user}:${this.password}`).toString('base64')}`,
-        ...(init.body !== undefined ? { 'Content-Type': 'application/xml; charset=utf-8' } : {}),
-        ...init.headers,
-      },
-    }).catch(() => {
-      throw new ApiError("Couldn't reach the calendar server", 502, 'dav_unreachable');
-    });
-    if (res.status === 401) throw new DavAuthError('DAV login failed');
-    // For the logs when something doesn't work against the real server (no credentials).
-    if (res.status >= 400 && !(res.status === 404 && method === 'DELETE')) console.warn(`DAV ${method} ${this.url(path).pathname} → ${res.status}`);
-    return res;
+    let url = this.url(path);
+    // Redirects are followed by hand with the same method and body: fetch would
+    // turn some into a GET, and a "successful" GET looks like a saved PUT.
+    for (let hop = 0; ; hop++) {
+      const res = await fetch(url, {
+        method,
+        body: init.body,
+        redirect: 'manual',
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+        headers: {
+          Authorization: `Basic ${Buffer.from(`${this.user}:${this.password}`).toString('base64')}`,
+          ...(init.body !== undefined ? { 'Content-Type': 'application/xml; charset=utf-8' } : {}),
+          ...init.headers,
+        },
+      }).catch(() => {
+        throw new ApiError("Couldn't reach the calendar server", 502, 'dav_unreachable');
+      });
+      this.trace?.push(`${method} ${url.pathname} → ${res.status}${res.headers.get('location') ? ` (Location: ${res.headers.get('location')})` : ''}`);
+      const location = res.headers.get('location');
+      if ([301, 302, 307, 308].includes(res.status) && location && hop < 3) {
+        const next = new URL(location, url);
+        if (next.origin === BASE.origin) {
+          url = next;
+          continue;
+        }
+      }
+      if (res.status === 401) throw new DavAuthError('DAV login failed');
+      // For the logs when something doesn't work against the real server (no credentials).
+      if (res.status >= 300 && !(res.status === 404 && (method === 'DELETE' || method === 'GET'))) {
+        console.warn(`DAV ${method} ${url.pathname} → ${res.status}${location ? ` (Location: ${location})` : ''}`);
+      }
+      if (res.status >= 300 && res.status < 400) throw new ApiError(`The calendar server answered ${res.status}`, 502, 'dav_failed');
+      return res;
+    }
   }
 
   async multistatus(method: 'PROPFIND' | 'REPORT', path: string, depth: 0 | 1, body: string) {
@@ -119,7 +139,15 @@ export class Dav {
     });
     if (res.status === 412) throw new ApiError('Changed elsewhere', 409, 'dav_conflict');
     if (!res.ok) throw new ApiError(`The calendar server answered ${res.status}`, 502, 'dav_failed');
-    return res.headers.get('etag');
+    // Make sure it was really stored: a write that "succeeds" but leaves
+    // nothing behind would otherwise just vanish from the list.
+    const check = await this.request('GET', path);
+    if (!check.ok) {
+      console.warn(`DAV PUT ${this.url(path).pathname} answered ${res.status}, but reading it back gave ${check.status}`);
+      throw new ApiError(`Saved, but the calendar server can't find it (${res.status} → ${check.status})`, 502, 'dav_not_saved', { put: res.status, get: check.status });
+    }
+    await check.arrayBuffer().catch(() => {});
+    return res.headers.get('etag') ?? check.headers.get('etag');
   }
 
   async remove(path: string, etag?: string | null) {

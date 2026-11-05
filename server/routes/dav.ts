@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import type { AppEnv } from '../auth';
-import { withDav } from '../dav/client';
+import { randomUUID } from 'node:crypto';
+import { type DavContext, readCollection, text, withDav } from '../dav/client';
 import { createCalendar, createEvent, deleteEvent, type EventInput, listCalendars, listEvents, moveEvent, type Repeat, updateCalendar, updateEvent } from '../dav/calendar';
 import { type ContactInput, createContact, deleteContact, type Labeled, listAddressBooks, listContacts, updateContact } from '../dav/contacts';
 import { badRequest } from '../errors';
@@ -65,7 +66,66 @@ function contactInput(body: Record<string, unknown>): ContactInput {
 
 const list = (value: string | undefined) => (value ? value.split(',').filter(Boolean).slice(0, 50) : []);
 
+// One save → list → read → delete round on a real collection, recording what
+// the server answered at each step. For debugging against PurelyMail; returns
+// no credentials. Removes what it created.
+async function roundTrip(ctx: DavContext, collection: string, kind: 'calendar' | 'addressbook') {
+  const uid = `diagnose-${randomUUID()}`;
+  const href = `${collection}${uid}.${kind === 'calendar' ? 'ics' : 'vcf'}`;
+  const now = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
+  const body =
+    kind === 'calendar'
+      ? `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//purelymail-manager//diagnose//EN\r\nBEGIN:VEVENT\r\nUID:${uid}\r\nDTSTAMP:${now}\r\nDTSTART:${now}\r\nDURATION:PT30M\r\nSUMMARY:purelymail-manager test\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n`
+      : `BEGIN:VCARD\r\nVERSION:3.0\r\nUID:${uid}\r\nFN:purelymail-manager test\r\nN:test;purelymail-manager;;;\r\nEND:VCARD\r\n`;
+  const result: Record<string, unknown> = { collection, href };
+  const put = await ctx.dav.request('PUT', href, { body, headers: { 'Content-Type': `text/${kind === 'calendar' ? 'calendar' : 'vcard'}; charset=utf-8`, 'If-None-Match': '*' } });
+  result.put = { status: put.status, etag: put.headers.get('etag'), location: put.headers.get('location'), body: (await put.text()).slice(0, 500) };
+  const get = await ctx.dav.request('GET', href);
+  result.get = { status: get.status, contentType: get.headers.get('content-type'), body: (await get.text()).slice(0, 800) };
+  const list = await ctx.dav.request('PROPFIND', collection, {
+    body: '<?xml version="1.0" encoding="utf-8"?><d:propfind xmlns:d="DAV:"><d:prop><d:getetag/><d:resourcetype/></d:prop></d:propfind>',
+    headers: { Depth: '1' },
+  });
+  const listXml = await list.text();
+  result.propfind = { status: list.status, mentionsTestItem: listXml.includes(uid), bytes: listXml.length, start: listXml.slice(0, 2500) };
+  try {
+    const items = await readCollection(ctx.dav, `diagnose|${ctx.address}`, collection, kind);
+    const mine = items.find((r) => r.href.includes(uid));
+    result.readCollection = { items: items.length, found: Boolean(mine), hasData: Boolean(mine && text(mine.props[kind === 'calendar' ? 'calendar-data' : 'address-data'])) };
+  } catch (error) {
+    result.readCollection = { error: String(error) };
+  }
+  const del = await ctx.dav.request('DELETE', href);
+  result.delete = { status: del.status };
+  return result;
+}
+
 export const davRoutes = new Hono<AppEnv>()
+  .get('/diagnose', async (c) => {
+    const access = await openMailbox(c, c.var.session, c.req.query('mailbox'));
+    return c.json(
+      await withDav(access, async (ctx) => {
+        ctx.dav.trace = [];
+        const out: Record<string, unknown> = { homes: ctx.homes };
+        const step = async (name: string, fn: () => Promise<unknown>) => {
+          try {
+            out[name] = await fn();
+          } catch (error) {
+            out[name] = { error: error instanceof Error ? `${error.constructor.name}: ${error.message}` : String(error) };
+          }
+        };
+        let calendars: { href: string; readOnly: boolean }[] = [];
+        let books: { href: string }[] = [];
+        await step('calendars', async () => (calendars = await listCalendars(ctx)));
+        await step('addressBooks', async () => (books = await listAddressBooks(ctx)));
+        const cal = calendars.find((x) => !x.readOnly) ?? calendars[0];
+        if (cal) await step('calendarTest', () => roundTrip(ctx, cal.href, 'calendar'));
+        if (books[0]) await step('contactTest', () => roundTrip(ctx, books[0].href, 'addressbook'));
+        out.trace = ctx.dav.trace;
+        return out;
+      })
+    );
+  })
   // --- Calendars
   .get('/calendars', async (c) => {
     const access = await openMailbox(c, c.var.session, c.req.query('mailbox'));
